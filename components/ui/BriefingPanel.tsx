@@ -6,11 +6,12 @@ import type { Challenge } from "@/data/challenges";
 interface Props {
   challenge: Challenge | null;
   hintRevealed: boolean;
+  hintText: string | null;
   onRevealHint: () => void;
   completed: boolean;
 }
 
-export default function BriefingPanel({ challenge, hintRevealed, onRevealHint, completed }: Props) {
+export default function BriefingPanel({ challenge, hintRevealed, hintText, onRevealHint, completed }: Props) {
   // Re-key when a challenge is cleared so the card swaps instead of just
   // flipping its border color.
   const cardKey = challenge ? `${challenge.id}-${completed ? "done" : "open"}` : "clear";
@@ -77,7 +78,7 @@ export default function BriefingPanel({ challenge, hintRevealed, onRevealHint, c
                         AXIOM HINT
                       </p>
                       <p className="mt-1 rounded border border-[#232a3a] bg-[#0b0e14] p-2 font-mono text-xs leading-relaxed text-[#e6e9f0]">
-                        {challenge.hint}
+                        {hintText ?? challenge.hint}
                       </p>
                     </motion.div>
                   ) : (
@@ -89,7 +90,7 @@ export default function BriefingPanel({ challenge, hintRevealed, onRevealHint, c
                       whileTap={{ scale: 0.97 }}
                       className="rounded border border-[#232a3a] px-3 py-1.5 text-xs tracking-widest text-[#8b93a7] transition-colors hover:border-[#fbbf24] hover:text-[#fbbf24] active:scale-[0.97]"
                     >
-                      Reveal hint (-5 XP)
+                      Reveal hint (escalating)
                     </motion.button>
                   )}
                 </AnimatePresence>

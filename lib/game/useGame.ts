@@ -10,6 +10,7 @@ import {
   type Unsubscribe,
 } from "./store";
 import type { Shell } from "./engine-contract";
+import type { DashboardStats } from "./coach";
 import { createShell } from "@/lib/engine";
 
 let bootstrapped = false;
@@ -22,6 +23,7 @@ function ensureInit(): void {
 }
 
 export type { GameEvent, GameEventHandler, GameState, Shell, Unsubscribe };
+export type { DashboardStats };
 
 /**
  * Public actions surface for the NEXUS: Linux Quest UI.
@@ -40,7 +42,7 @@ export interface GameActions {
   state: GameState;
   /** Execute a command and run the challenge verifier. Returns shell output. */
   runCommand(input: string): string;
-  /** Reveal the active challenge's hint (-5 XP, never below zero). Returns the hint text. */
+  /** Reveal the active challenge's hint (escalating 0/5/10/20 XP). Returns the hint text. */
   useHint(challengeId?: string): string;
   /** Start the active boss drill timer. Returns the timer length in seconds. */
   startBoss(): number;
@@ -57,6 +59,22 @@ export interface GameActions {
   onEvent(cb: GameEventHandler): Unsubscribe;
   /** UI-shell extension: switch the working zone (unlocked zones only). */
   selectZone(zone: number): void;
+  /** Mark a lesson viewed. Returns true on first view. */
+  viewLesson(id: string): boolean;
+  /** True when every lesson of a chapter has been viewed. */
+  lessonsDone(chapter: number): boolean;
+  /** The PLAY phase opens only after a chapter's lessons are done. */
+  canPlay(chapter: number): boolean;
+  /** Learn / Play / Prove progress for a chapter map card. */
+  chapterPhase(chapter: number): { learn: boolean; play: boolean; prove: boolean };
+  /** Record a chapter quiz result. Returns true on a perfect score. */
+  submitQuiz(chapter: number, score: number, total: number): boolean;
+  /** Dashboard numbers for the command-center view. */
+  getDashboardStats(): DashboardStats;
+  /** AXIOM's read on a command that did not solve the active challenge. */
+  getCoachFeedback(input: string): string;
+  /** Dismiss the onboarding overlay permanently. */
+  setOnboarded(): void;
 }
 
 export function useGame(): GameActions {
@@ -79,6 +97,24 @@ export function useGame(): GameActions {
   const selectZone = useCallback((zone: number) => {
     store.setZone(zone);
   }, [store]);
+  const viewLesson = useCallback((id: string) => store.viewLesson(id), [store]);
+  const lessonsDone = useCallback((chapter: number) => store.lessonsDone(chapter), [store]);
+  const canPlay = useCallback((chapter: number) => store.canPlay(chapter), [store]);
+  const chapterPhase = useCallback(
+    (chapter: number) => store.chapterPhase(chapter),
+    [store]
+  );
+  const submitQuiz = useCallback(
+    (chapter: number, score: number, total: number) =>
+      store.submitQuiz(chapter, score, total),
+    [store]
+  );
+  const getDashboardStats = useCallback(() => store.getDashboardStats(), [store]);
+  const getCoachFeedback = useCallback(
+    (input: string) => store.getCoachFeedback(input),
+    [store]
+  );
+  const setOnboarded = useCallback(() => store.setOnboarded(), [store]);
 
   return {
     shell: store.shell,
@@ -93,5 +129,13 @@ export function useGame(): GameActions {
     afterCommand,
     onEvent,
     selectZone,
+    viewLesson,
+    lessonsDone,
+    canPlay,
+    chapterPhase,
+    submitQuiz,
+    getDashboardStats,
+    getCoachFeedback,
+    setOnboarded,
   };
 }

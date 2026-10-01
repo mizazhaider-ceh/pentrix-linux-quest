@@ -1,8 +1,19 @@
 import { CHALLENGES, type Challenge } from "../../data/challenges";
-import { ZONES } from "../../data/zones";
+import { LESSONS, LESSON_CHAPTERS, lessonsForChapter } from "../../data/lessons";
 import { checkChallenge } from "./verifier";
 import { ACHIEVEMENTS, checkAchievements } from "./achievements";
 import { CTF_CHALLENGES, type CtfChallenge } from "./ctf";
+import {
+  HINT_LEVELS,
+  hintCostFor,
+  nextStreak,
+  streakBonus,
+  recordAttempt,
+  coachMiss,
+  computeStats,
+  type CommandMastery,
+  type DashboardStats,
+} from "./coach";
 import {
   getShellFactory,
   type Shell,
@@ -11,6 +22,7 @@ import {
 
 export const SAVE_KEY = "nexus-linux-quest-v1";
 export const HINT_COST = 5;
+export const LESSON_XP = 5;
 export const CTF_ZONE = 9;
 export const STANDARD_PER_ZONE = 13;
 export const ZONE_UNLOCK_THRESHOLD = 10;
@@ -67,7 +79,9 @@ export type GameEvent =
     })
   | (EventBase & { type: "boss-timeout"; kind: "boss-end" })
   | (EventBase & { type: "ctf-flag"; kind: "challenge"; flag: string })
-  | (EventBase & { type: "graduated"; kind: "info" });
+  | (EventBase & { type: "graduated"; kind: "info" })
+  | (EventBase & { type: "lesson"; kind: "info"; id: string })
+  | (EventBase & { type: "quiz-complete"; kind: "info"; score: number; total: number });
 
 export type GameEventHandler = (event: GameEvent) => void;
 export type Unsubscribe = () => void;
@@ -81,6 +95,25 @@ export interface PersistedState {
   achievements: string[];
   ctfFlags: string[];
   bossBeatClock: Record<string, boolean>;
+  /** v2: lesson progress for the Learn phase. */
+  lessonsViewed: Record<string, boolean>;
+  /** v2: challengeId -> highest hint level claimed (0-3). */
+  hintLevels: Record<string, number>;
+  /** v2: hintless-solve streaks. */
+  streakCurrent: number;
+  streakBest: number;
+  /** v2: per-command practice tracking. */
+  mastery: Record<string, CommandMastery>;
+  /** v2: player has run `man <cmd>` at least once. */
+  manUsed: boolean;
+  /** v2: perfect chapter quizzes. */
+  quizAces: number;
+  /** v2: total commands run (accuracy denominator). */
+  attempts: number;
+  /** v2: onboarding overlay dismissed. */
+  onboarded: boolean;
+  /** v2: boss ids cleared with zero hints used anywhere in their zone. */
+  bossNoHints: string[];
 }
 
 export interface BossState {
@@ -140,13 +173,20 @@ function zoneChallenges(zone: number): Challenge[] {
   return CHALLENGES.filter((c) => c.zone === zone);
 }
 
-function isBossId(id: string): boolean {
-  return id.endsWith("-boss");
+/**
+ * Pull the solution command out of a hint for the level-3 "shove".
+ * Most hints end with "Just type: <command>" or ": <command>".
+ */
+function revealSolution(hint: string): string | null {
+  const m = hint.match(/just type:\s*`?([^`\n]+?)`?\s*$/i);
+  if (m) return m[1].trim();
+  const m2 = hint.match(/:\s*([a-z][\w-]*(?:\s+[^\n]*)?)$/);
+  if (m2) return m2[1].trim();
+  return null;
 }
 
-function zoneName(zone: number): string {
-  const z = ZONES.find((entry) => entry.id === zone);
-  return z ? z.name : `Zone ${zone}`;
+function isBossId(id: string): boolean {
+  return id.endsWith("-boss");
 }
 
 function achievementName(id: string): string {
@@ -164,6 +204,16 @@ function freshPersisted(): PersistedState {
     achievements: [],
     ctfFlags: [],
     bossBeatClock: {},
+    lessonsViewed: {},
+    hintLevels: {},
+    streakCurrent: 0,
+    streakBest: 0,
+    mastery: {},
+    manUsed: false,
+    quizAces: 0,
+    attempts: 0,
+    onboarded: false,
+    bossNoHints: [],
   };
 }
 
@@ -323,11 +373,29 @@ export class GameStore {
 
   /**
    * Run a command in the shell, then check the active challenge.
+   * Also tracks command mastery, man usage, and attempt counts.
    * Returns the shell output.
    */
   runCommand(input: string): string {
+    const first = input.trim().split(/\s+/)[0] ?? "";
+    const cmd = first.split("/").pop() ?? "";
+    if (cmd === "man") this.persisted.manUsed = true;
+    const beforeId = this.getActive()?.challenge.id;
     const output = this.shell.execute(input);
+    this.persisted.attempts += 1;
     this.afterCommand();
+    const solved =
+      beforeId !== undefined && !!this.persisted.completed[beforeId];
+    if (cmd) {
+      this.persisted.mastery = recordAttempt(
+        this.persisted.mastery,
+        cmd,
+        solved
+      );
+    }
+    if (solved) this.grantAchievements();
+    this.touch();
+    this.save();
     return output;
   }
 
@@ -349,23 +417,66 @@ export class GameStore {
     if (passed) this.awardFor(active.challenge, active.kind);
   }
 
+  /** Run achievement checks with the full v2 progress snapshot. */
+  private grantAchievements(): void {
+    const p = this.persisted;
+    const masteredCount = Object.values(p.mastery).filter(
+      (m) => m.solves >= 3
+    ).length;
+    const newly = checkAchievements({
+      completed: p.completed,
+      hintsUsed: p.hintsUsed,
+      achievements: p.achievements,
+      bossBeatClock: p.bossBeatClock,
+      lessonsViewed: p.lessonsViewed,
+      lessonChapters: LESSON_CHAPTERS,
+      streakBest: p.streakBest,
+      masteredCount,
+      manUsed: p.manUsed,
+      quizAces: p.quizAces,
+      bossNoHints: p.bossNoHints,
+      xp: p.xp,
+    });
+    for (const id of newly) {
+      p.achievements.push(id);
+      const def = ACHIEVEMENTS.find((a) => a.id === id);
+      this.emit({
+        type: "achievement",
+        kind: "achievement",
+        title: `Achievement: ${achievementName(id)}`,
+        sub: def ? def.description : undefined,
+        id,
+      });
+    }
+  }
+
   private awardFor(challenge: Challenge, kind: ActiveKind): void {
     const p = this.persisted;
     p.completed[challenge.id] = true;
 
+    // v2: hintless-solve streak. Using a hint on a challenge breaks it.
+    const brokeStreak = !!p.hintsUsed[challenge.id];
+    const next = nextStreak(
+      { current: p.streakCurrent, best: p.streakBest },
+      !brokeStreak
+    );
+    p.streakCurrent = next.current;
+    p.streakBest = next.best;
+    const bonus = streakBonus(next.current);
+
     const before = levelFor(p.xp);
-    p.xp += challenge.xp;
+    p.xp += challenge.xp + bonus;
     const after = levelFor(p.xp);
     this.touch();
     this.emit({
       type: "challenge-complete",
       kind: "challenge",
       title: "Challenge cleared",
-      sub: `${challenge.title} (+${challenge.xp} XP)`,
+      sub: `${challenge.title} (+${challenge.xp} XP${bonus > 0 ? `, streak +${bonus}` : ""})`,
       id: challenge.id,
       xp: challenge.xp,
     });
-    this.emit({ type: "xp", kind: "xp", title: `+${challenge.xp} XP`, amount: challenge.xp });
+    this.emit({ type: "xp", kind: "xp", title: `+${challenge.xp + bonus} XP`, amount: challenge.xp + bonus });
     if (after.level > before.level) {
       this.emit({
         type: "levelup",
@@ -377,25 +488,6 @@ export class GameStore {
       });
     }
 
-    if (kind === "standard") {
-      const done = this.zoneProgress(p.zone);
-      if (
-        done >= ZONE_UNLOCK_THRESHOLD &&
-        p.zone < 8 &&
-        !p.unlockedZones.includes(p.zone + 1)
-      ) {
-        p.unlockedZones.push(p.zone + 1);
-        this.touch();
-        this.emit({
-          type: "zone-unlock",
-          kind: "info",
-          title: `Zone ${p.zone + 1} unlocked`,
-          sub: `${zoneName(p.zone + 1)} is open.`,
-          zone: p.zone + 1,
-        });
-      }
-    }
-
     if (kind === "boss") {
       if (this.boss && this.boss.challengeId === challenge.id) {
         const remainingMs = this.boss.deadline - Date.now();
@@ -403,8 +495,18 @@ export class GameStore {
           p.bossBeatClock[challenge.id] = true;
         }
       }
+      // v2: flawless drill = boss cleared with zero hints used anywhere in its zone.
+      const zoneStd = zoneChallenges(p.zone).filter((c) => !isBossId(c.id));
+      const clean = zoneStd.every(
+        (c) => !p.hintsUsed[c.id] && (p.hintLevels[c.id] ?? 0) === 0
+      );
+      if (clean && !p.bossNoHints.includes(challenge.id)) {
+        p.bossNoHints.push(challenge.id);
+      }
       this.boss = null;
       if (p.zone < 8) {
+        // v2: the next chapter unlocks when the boss (chapter exam) is cleared.
+        if (!p.unlockedZones.includes(p.zone + 1)) p.unlockedZones.push(p.zone + 1);
         p.zone = p.zone + 1;
       } else {
         if (!p.unlockedZones.includes(CTF_ZONE)) p.unlockedZones.push(CTF_ZONE);
@@ -424,23 +526,7 @@ export class GameStore {
       });
     }
 
-    const newly = checkAchievements({
-      completed: p.completed,
-      hintsUsed: p.hintsUsed,
-      achievements: p.achievements,
-      bossBeatClock: p.bossBeatClock,
-    });
-    for (const id of newly) {
-      p.achievements.push(id);
-      const def = ACHIEVEMENTS.find((a) => a.id === id);
-      this.emit({
-        type: "achievement",
-        kind: "achievement",
-        title: `Achievement: ${achievementName(id)}`,
-        sub: def ? def.description : undefined,
-        id,
-      });
-    }
+    this.grantAchievements();
 
     if (kind === "ctf" && CTF_CHALLENGES.every((c) => p.completed[c.id])) {
       this.emit({
@@ -452,9 +538,9 @@ export class GameStore {
     }
 
     this.touch();
-    const next = this.getActive();
-    if (next && next.challenge.setup) {
-      this.shell.applySetup(next.challenge.setup);
+    const nextCh = this.getActive();
+    if (nextCh && nextCh.challenge.setup) {
+      this.shell.applySetup(nextCh.challenge.setup);
     }
     this.save();
   }
@@ -462,20 +548,150 @@ export class GameStore {
   // ---------- hints ----------
 
   /**
-   * Reveal the active challenge's hint. Costs 5 XP, never below zero.
-   * Returns the hint text, or "" when there is no active challenge (or the
-   * given challenge id is not the active one).
+   * Escalating hints for the active challenge. Level 0 is a free nudge,
+   * then 5 / 10 / 20 XP for a point, a push, and a near-answer shove.
+   * Returns the hint text for the claimed level, or "" when there is no
+   * active challenge (or the given challenge id is not the active one).
    */
   useHint(challengeId?: string): string {
     const active = this.getActive();
     if (!active) return "";
     if (challengeId && challengeId !== active.challenge.id) return "";
     const p = this.persisted;
+    const prev = p.hintLevels[active.challenge.id] ?? -1;
+    const level = Math.min(prev + 1, HINT_LEVELS.length - 1);
+    const cost = hintCostFor(level);
+    p.hintLevels[active.challenge.id] = level;
     p.hintsUsed[active.challenge.id] = true;
-    p.xp = Math.max(0, p.xp - HINT_COST);
+    p.xp = Math.max(0, p.xp - cost);
+    p.streakCurrent = 0;
+    const label = HINT_LEVELS[level];
+    let text: string;
+    if (level === 0) {
+      text = `AXIOM nudge (${label.label}): re-read the task, then try the command that matches it. The obvious answer is usually the right one.`;
+    } else if (level === 3) {
+      const reveal = revealSolution(active.challenge.hint);
+      text =
+        reveal != null
+          ? `AXIOM shove (${label.label}, -${cost} XP): the command starts like this:\n  ${reveal}`
+          : `AXIOM shove (${label.label}, -${cost} XP): ${active.challenge.hint}`;
+    } else {
+      text = `AXIOM hint (${label.label}, -${cost} XP): ${active.challenge.hint}`;
+    }
     this.touch();
     this.save();
-    return active.challenge.hint;
+    return text;
+  }
+
+  // ---------- learn phase ----------
+
+  /** Mark a lesson viewed (+LESSON_XP). Returns true on first view. */
+  viewLesson(id: string): boolean {
+    const p = this.persisted;
+    if (p.lessonsViewed[id]) return false;
+    p.lessonsViewed[id] = true;
+    const before = levelFor(p.xp);
+    p.xp += LESSON_XP;
+    const after = levelFor(p.xp);
+    this.emit({
+      type: "lesson",
+      kind: "info",
+      title: `Lesson studied (+${LESSON_XP} XP)`,
+      id,
+    });
+    if (after.level > before.level) {
+      this.emit({
+        type: "levelup",
+        kind: "levelup",
+        title: `Level up: ${after.levelName}`,
+        sub: `You are now level ${after.level}.`,
+        level: after.level,
+        levelName: after.levelName,
+      });
+    }
+    this.grantAchievements();
+    this.touch();
+    this.save();
+    return true;
+  }
+
+  /** True when every lesson of a chapter has been viewed. */
+  lessonsDone(chapter: number): boolean {
+    return lessonsForChapter(chapter).every(
+      (l) => this.persisted.lessonsViewed[l.id]
+    );
+  }
+
+  /** The PLAY phase of a chapter opens only after its lessons are done. */
+  canPlay(chapter: number): boolean {
+    return (
+      this.persisted.unlockedZones.includes(chapter) && this.lessonsDone(chapter)
+    );
+  }
+
+  /** Learn / Play / Prove progress for a chapter map card. */
+  chapterPhase(chapter: number): { learn: boolean; play: boolean; prove: boolean } {
+    const p = this.persisted;
+    const std = zoneChallenges(chapter).filter((c) => !isBossId(c.id));
+    const boss = zoneChallenges(chapter).find((c) => isBossId(c.id));
+    return {
+      learn: this.lessonsDone(chapter),
+      play: std.every((c) => p.completed[c.id]),
+      prove: boss ? !!p.completed[boss.id] : true,
+    };
+  }
+
+  /** Record a chapter quiz result. A perfect score is a quiz ace. */
+  submitQuiz(chapter: number, score: number, total: number): boolean {
+    const ace = total > 0 && score >= total;
+    if (ace) this.persisted.quizAces += 1;
+    this.emit({
+      type: "quiz-complete",
+      kind: "info",
+      title: ace ? "Quiz aced" : "Quiz complete",
+      sub: `Chapter ${chapter}: ${score}/${total}`,
+      score,
+      total,
+    });
+    this.grantAchievements();
+    this.touch();
+    this.save();
+    return ace;
+  }
+
+  /** Dashboard numbers for the command-center view. */
+  getDashboardStats(): DashboardStats {
+    const p = this.persisted;
+    const chaptersDone = [1, 2, 3, 4, 5, 6, 7, 8].filter(
+      (ch) => this.chapterPhase(ch).prove
+    ).length;
+    return computeStats({
+      xp: p.xp,
+      levelName: levelFor(p.xp).levelName,
+      completed: p.completed,
+      lessonsViewed: p.lessonsViewed,
+      lessonsTotal: LESSONS.length,
+      challengesTotal: CHALLENGES.length + CTF_CHALLENGES.length,
+      attempts: p.attempts,
+      solves: Object.keys(p.completed).length,
+      bestStreak: p.streakBest,
+      chaptersDone,
+    });
+  }
+
+  /** AXIOM's read on a command that did not solve the active challenge. */
+  getCoachFeedback(input: string): string {
+    const active = this.getActive();
+    if (!active || active.kind !== "standard") return "";
+    const name = input.trim().split(/\s+/)[0]?.split("/").pop() ?? "";
+    return coachMiss(active.challenge.task, name || input.trim());
+  }
+
+  /** Dismiss the onboarding overlay permanently. */
+  setOnboarded(): void {
+    this.persisted.onboarded = true;
+    this.touch();
+    this.save();
   }
 
   // ---------- boss timer ----------
@@ -587,7 +803,28 @@ export class GameStore {
         achievements: data.achievements ?? [],
         ctfFlags: data.ctfFlags ?? [],
         bossBeatClock: data.bossBeatClock ?? {},
+        lessonsViewed: data.lessonsViewed ?? {},
+        hintLevels: data.hintLevels ?? {},
+        mastery: data.mastery ?? {},
+        bossNoHints: data.bossNoHints ?? [],
       };
+      // v2 migration: returning agents keep their progress but still need the
+      // Learn phase. Mark lessons viewed for any chapter they already played.
+      if (
+        Object.keys(this.persisted.lessonsViewed).length === 0 &&
+        Object.keys(this.persisted.completed).length > 0
+      ) {
+        for (let ch = 1; ch <= 8; ch++) {
+          const played = zoneChallenges(ch).some(
+            (c) => this.persisted.completed[c.id]
+          );
+          if (played) {
+            for (const l of lessonsForChapter(ch)) {
+              this.persisted.lessonsViewed[l.id] = true;
+            }
+          }
+        }
+      }
       this.boss = null;
       this.shell.reset();
       for (const ch of CHALLENGES) {

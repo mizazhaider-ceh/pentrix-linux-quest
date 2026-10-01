@@ -11,9 +11,10 @@
  *    `{ shell, state, runCommand, useHint, startBoss, tickBoss,
  *       submitCtfFlag, resetAll, afterCommand, onEvent }`.
  * 3. Double-execution guard: TerminalGame passes Terminal a WRAPPED shell:
- *       execute: (input) => { const out = shell.execute(input); actions.afterCommand(); return out; }
+ *       execute: (input) => actions.runCommand(input)
  *    so challenge verification/XP runs exactly once per command, inside
- *    `afterCommand()`, never in both the Terminal and the hook.
+ *    `store.runCommand()` (which also tracks mastery, man usage, and
+ *    attempts), never in both the Terminal and the hook.
  * 4. `onEvent(cb)` subscribes to game events. Two shapes are accepted and
  *    normalized here:
  *      - contract shape: { kind, title, sub?, level?, levelName? } with kind in
@@ -120,7 +121,14 @@ function normalizeEvent(e: StubGameEvent | Record<string, unknown>): UiEvent {
   }
 }
 
-export default function TerminalGame() {
+interface TerminalGameProps {
+  /** Optional: return to the chapter map (v2 flow). */
+  onOpenMap?: () => void;
+  /** Optional: re-read this chapter's lessons (v2 flow). */
+  onOpenLessons?: () => void;
+}
+
+export default function TerminalGame({ onOpenMap, onOpenLessons }: TerminalGameProps) {
   const actions: GameActions = useGame();
   const { state, onEvent } = actions;
 
@@ -140,11 +148,7 @@ export default function TerminalGame() {
   const wrappedShell: Shell = useMemo(
     () => ({
       ...actions.shell,
-      execute: (input: string) => {
-        const out = actions.shell.execute(input);
-        actions.afterCommand();
-        return out;
-      },
+      execute: (input: string) => actions.runCommand(input),
     }),
     [actions]
   );
@@ -263,6 +267,20 @@ export default function TerminalGame() {
 
   const zoneName = ZONES.find((z) => z.id === effectiveZone)?.name ?? "Unknown";
 
+  // Escalating hint text revealed for the current challenge.
+  const [revealedHint, setRevealedHint] = useState<{ id: string; text: string } | null>(null);
+  const handleRevealHint = useCallback(() => {
+    const ch = activeChallenge;
+    if (!ch) return;
+    const text = actions.useHint(ch.id);
+    if (text) setRevealedHint({ id: ch.id, text });
+  }, [actions, activeChallenge]);
+
+  // Clear the revealed hint when the active challenge changes.
+  useEffect(() => {
+    setRevealedHint(null);
+  }, [activeChallenge?.id]);
+
   const handleReset = () => {
     if (
       window.confirm(
@@ -290,6 +308,22 @@ export default function TerminalGame() {
             >
               HOW TO PLAY
             </a>
+            {onOpenMap && (
+              <button
+                onClick={onOpenMap}
+                className="text-[11px] tracking-widest text-[#8b93a7] underline-offset-4 hover:text-[#4ade80] hover:underline"
+              >
+                CHAPTER MAP
+              </button>
+            )}
+            {onOpenLessons && (
+              <button
+                onClick={onOpenLessons}
+                className="text-[11px] tracking-widest text-[#4ade80] underline-offset-4 hover:underline"
+              >
+                LESSONS
+              </button>
+            )}
           </div>
           <Hud
             xp={state.xp}
@@ -330,8 +364,9 @@ export default function TerminalGame() {
             </h2>
             <BriefingPanel
               challenge={activeChallenge}
-              hintRevealed={activeChallenge ? !!state.hintsUsed[activeChallenge.id] : false}
-              onRevealHint={() => activeChallenge && actions.useHint(activeChallenge.id)}
+              hintRevealed={activeChallenge ? revealedHint?.id === activeChallenge.id : false}
+              hintText={activeChallenge && revealedHint?.id === activeChallenge.id ? revealedHint.text : null}
+              onRevealHint={handleRevealHint}
               completed={activeCompleted}
             />
           </section>
@@ -359,7 +394,7 @@ export default function TerminalGame() {
                   START LOCKDOWN DRILL
                 </button>
                 <p className="mt-2 text-[11px] leading-relaxed text-[#8b93a7]">
-                  Timed. Hints cost 5 XP and the clock does not pause for them.
+                  Timed. Hints escalate: free nudge, then 5 / 10 / 20 XP. The clock does not pause for them.
                 </p>
               </div>
             ) : (

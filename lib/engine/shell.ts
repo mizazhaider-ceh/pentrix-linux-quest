@@ -9,7 +9,7 @@
  * bash-like message.
  */
 
-import { COMMANDS, describeSleepJob, formatMode, resetSysProcs, type CmdIO, type CmdResult } from "./commands";
+import { COMMANDS, describeSleepJob, formatMode, resetSysProcs, unknownCommandMessage, type CmdIO, type CmdResult } from "./commands";
 import { FsError, VirtualFS, type UserCtx } from "./fs";
 import type { EngineSetup, Shell } from "./types";
 
@@ -465,7 +465,7 @@ export class ShellImpl implements Shell {
   /** Run a single command by name (used by sudo/nice/nohup). */
   runCommandAs(name: string, args: string[], stdin: string, env: Record<string, string>, euid: number): CmdResult {
     const impl = COMMANDS[name];
-    if (!impl) return { code: 127, out: "", err: `bash: ${name}: command not found\n` };
+    if (!impl) return { code: 127, out: "", err: unknownCommandMessage(name) };
     const io: CmdIO = { args, stdin, env: { ...env }, user: this.userFor(euid), shell: this };
     try {
       return impl(io);
@@ -590,7 +590,7 @@ export class ShellImpl implements Shell {
     const impl = COMMANDS[name];
     let res: CmdResult;
     if (!impl) {
-      res = { code: 127, out: "", err: `bash: ${name}: command not found\n` };
+      res = { code: 127, out: "", err: unknownCommandMessage(name) };
     } else {
       const io: CmdIO = { args, stdin: stdinData, env: cmdEnv, user, shell: this };
       try {

@@ -2817,6 +2817,88 @@ export const COMMANDS: Record<string, CommandFn> = {
 export const COMMAND_COUNT = Object.keys(COMMANDS).length;
 
 /* ------------------------------------------------------------------ */
+/* did-you-mean: suggestions for unknown commands                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Optimal string alignment distance (Levenshtein with one adjacent
+ * transposition counting as a single edit). Transpositions are the most
+ * common shell typo ("sl" for "ls"), so they deserve the discount.
+ */
+function editDistance(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  const d: number[][] = [];
+  for (let i = 0; i <= m; i++) {
+    d[i] = [i];
+    for (let j = 1; j <= n; j++) d[i][j] = 0;
+  }
+  for (let j = 0; j <= n; j++) d[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+      }
+    }
+  }
+  return d[m][n];
+}
+
+/** True when a and b differ by exactly one adjacent character swap. */
+function isSingleTransposition(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let i = 0;
+  while (i < a.length && a[i] === b[i]) i++;
+  if (i >= a.length - 1) return false;
+  return a[i] === b[i + 1] && a[i + 1] === b[i] && a.slice(i + 2) === b.slice(i + 2);
+}
+
+/**
+ * Closest COMMANDS key within edit distance 2 of `name`, or null when
+ * nothing is close. Ties prefer the transposition typo, then the shorter
+ * name, then alphabetical order. Returns null for valid command names.
+ */
+export function suggestCommand(name: string): string | null {
+  if (!name || COMMANDS[name]) return null;
+  let best: string | null = null;
+  let bestDist = 3;
+  let bestTransposed = false;
+  for (const key of Object.keys(COMMANDS)) {
+    if (Math.abs(key.length - name.length) > 2) continue;
+    const dist = editDistance(name, key);
+    if (dist > 2) continue;
+    const transposed = isSingleTransposition(name, key);
+    if (
+      best === null ||
+      dist < bestDist ||
+      (dist === bestDist && transposed && !bestTransposed) ||
+      (dist === bestDist &&
+        transposed === bestTransposed &&
+        (key.length < (best as string).length ||
+          (key.length === (best as string).length && key < (best as string))))
+    ) {
+      best = key;
+      bestDist = dist;
+      bestTransposed = transposed;
+    }
+  }
+  return best;
+}
+
+/** Full stderr text for an unknown command, with a suggestion when close. */
+export function unknownCommandMessage(name: string): string {
+  const hint = suggestCommand(name);
+  return `bash: ${name}: command not found\n${hint ? `did you mean: ${hint}\n` : ""}`;
+}
+
+/** The standard unknown-command result: 127 plus the AXIOM suggestion. */
+export function unknownCommandError(name: string): CmdResult {
+  return { code: 127, out: "", err: unknownCommandMessage(name) };
+}
+
+/* ------------------------------------------------------------------ */
 /* man pages                                                           */
 /* ------------------------------------------------------------------ */
 
@@ -3011,12 +3093,128 @@ export const MAN_PAGES: Record<string, string> = {
   date: M("date", "print the system date and time", "date [+FORMAT]",
     "Display the current time. FORMAT controls the output, e.g. +%Y-%m-%d.",
     [], ["date", "date +%Y"]),
+  chgrp: M("chgrp", "change group ownership of files", "chgrp [OPTION]... GROUP FILE...",
+    "Change the group of each FILE to GROUP. Only root can change group ownership, so this is usually run under sudo.",
+    [["-R, --recursive", "operate on files and directories recursively"]],
+    ["sudo chgrp agents /home/agent/ops/shared", "sudo chgrp -R agents /home/agent/ops/drop"]),
+  pgrep: M("pgrep", "look up processes by name", "pgrep [OPTION]... PATTERN",
+    "Print the PIDs of processes whose command line matches PATTERN. Exits 1 when nothing matches.",
+    [["-f, --full", "match against the full command line, not just the process name"]],
+    ["pgrep beacon", "pgrep -f 'exfil --slow'"]),
+  pkill: M("pkill", "signal processes by name", "pkill [-SIGNAL] [OPTION]... PATTERN",
+    "Send a signal to every process whose command line matches PATTERN. The default signal is TERM. Exits 1 when nothing matched.",
+    [["-f, --full", "match against the full command line"], ["-9, -KILL", "send KILL instead of TERM"]],
+    ["pkill beacon", "pkill -f 'exfil --slow'", "sudo pkill -9 beacon"]),
+  killall: M("killall", "kill processes by name", "killall NAME",
+    "Send TERM to every process whose command name is NAME, including your own background jobs. Exits 1 when no process matched.",
+    [],
+    ["killall beacon", "sudo killall sshd"]),
+  sleep: M("sleep", "delay for a specified amount of time", "sleep NUMBER[SUFFIX]",
+    "Pause for NUMBER seconds. SUFFIX may be s for seconds (the default), m for minutes, h for hours, or d for days. A foreground sleep returns instantly on the station; add & to park one as a background job.",
+    [],
+    ["sleep 5", "sleep 90s", "sleep 10m &"]),
+  bg: M("bg", "resume a job in the background", "bg [JOB]",
+    "Resume JOB in the background, as if it had been started with &. With no JOB, operate on the most recent job. Prints the job's status line.",
+    [],
+    ["sleep 60 &", "bg"]),
+  fg: M("fg", "bring a job to the foreground", "fg [JOB]",
+    "Bring JOB to the foreground. The job leaves the job list and its command line is printed. With no JOB, use the most recent job.",
+    [],
+    ["sleep 60 &", "fg", "fg %1"]),
+  nice: M("nice", "run a program with modified scheduling priority", "nice [-n ADJUSTMENT] COMMAND [ARG]...",
+    "Run COMMAND with its niceness adjusted by ADJUSTMENT. With no COMMAND, print the current niceness, which is 0. The value is recorded on background jobs.",
+    [["-n N, --adjustment N", "add N to the niceness"], ["-N", "shorthand for -n N, e.g. -5"]],
+    ["nice", "nice -n 10 ./scan.sh", "nice sleep 30 &"]),
+  nohup: M("nohup", "run a command immune to hangups", "nohup COMMAND [ARG]...",
+    "Run COMMAND so it keeps running after the shell exits. On the station this behaves like running the command directly.",
+    [],
+    ["nohup ./collect.sh &", "nohup ./longscan.sh > /home/agent/ops/out.log &"]),
+  top: M("top", "display Linux processes", "top",
+    "Show a snapshot of the station: uptime, load average, memory, and the task table with your background jobs. This top prints once and exits; it does not refresh.",
+    [],
+    ["top"]),
+  scp: M("scp", "copy files to and from the relay", "scp [-r] SOURCE... TARGET",
+    "Copy files between the station and the relay node at 10.0.0.2. Either the source or the target must be remote, written as [user@]host:path. Remote-to-local fetches are canned: only /incoming/manifest.txt exists on the relay.",
+    [["-r, -v, -q", "accepted and ignored on the station"]],
+    ["scp report.txt relay@10.0.0.2:/incoming/", "scp relay@10.0.0.2:/incoming/manifest.txt /home/agent/manifest.txt"]),
+  ss: M("ss", "dump socket statistics", "ss [OPTION]...",
+    "Show the station's sockets: listening services and live connections. By default shows TCP; add -u for UDP, -l to keep only listening sockets, -p to name the owning process.",
+    [["-t", "show TCP sockets (the default)"], ["-u", "show UDP sockets"], ["-l", "show listening sockets only"], ["-p", "show the process using each socket"]],
+    ["ss -tlnp", "ss -tup", "ss -t"]),
+  ip: M("ip", "show network interfaces and routes", "ip addr | route | link",
+    "Show the station network configuration. Supported objects: addr (interface addresses), route (the routing table), link (link devices). The station is 10.0.0.9/24 on eth0 with gateway 10.0.0.1.",
+    [],
+    ["ip addr", "ip route", "ip link"]),
+  uptime: M("uptime", "tell how long the system has been running", "uptime",
+    "Print the current time, how long the station has been up, the user count, and the load average.",
+    [],
+    ["uptime"]),
+  man: M("man", "display the on-line manual", "man COMMAND",
+    "Display the manual page for COMMAND. With no argument it asks what page you want; unknown names report 'No manual entry'. When lesson data is wired in, each page gains a LESSON section.",
+    [],
+    ["man ls", "man chmod", "man man"]),
+  clear: M("clear", "clear the terminal screen", "clear",
+    "Clear the terminal screen, leaving the prompt at the top.",
+    [],
+    ["clear"]),
+  id: M("id", "print user and group IDs", "id [USER]",
+    "Print the uid, gid, and groups for USER, or for the current user when omitted. Known users on the station: agent (1000) and root (0).",
+    [],
+    ["id", "id agent", "sudo id root"]),
+  hostname: M("hostname", "show the system host name", "hostname",
+    "Print the station's host name: nexus.",
+    [],
+    ["hostname"]),
+  exit: M("exit", "cause the shell to exit", "exit",
+    "Exit the station shell and print 'logout'.",
+    [],
+    ["exit"]),
+  less: M("less", "page through text", "less [FILE]...",
+    "Display FILE, or standard input when no FILE is given. The station pager prints the whole input at once instead of paging.",
+    [],
+    ["less /home/agent/intel/access.log", "cat /home/agent/intel/access.log | less"]),
+  more: M("more", "page through text (the classic pager)", "more [FILE]...",
+    "The older cousin of less. On the station it behaves exactly like less: the whole input is printed at once.",
+    [],
+    ["more /home/agent/intel/memo.txt"]),
+  true: M("true", "do nothing, successfully", "true",
+    "Exit with status 0. Handy as a no-op placeholder in scripts and loops.",
+    [],
+    ["true", "true && echo ok"]),
+  false: M("false", "do nothing, unsuccessfully", "false",
+    "Exit with status 1. Handy for testing the failure branch of && and || chains.",
+    [],
+    ["false", "false || echo failed"]),
 };
+
+/* ------------------------------------------------------------------ */
+/* lesson provider hook                                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A function that returns lesson text for a command name, or null when the
+ * command has no lesson. Registered by the app at startup once the lesson
+ * data module exists; until then man pages print without a LESSON section.
+ */
+export type LessonProvider = (cmd: string) => string | null;
+
+let lessonProvider: LessonProvider | null = null;
+
+/** Wire the lesson data source that `man <command>` appends as a LESSON section. */
+export function setLessonProvider(fn: LessonProvider | null): void {
+  lessonProvider = fn;
+}
 
 function cmdMan(io: CmdIO): CmdResult {
   if (io.args.length === 0) return fail("What manual page do you want?\n", 1);
   const name = io.args[0];
   const page = MAN_PAGES[name];
   if (!page) return fail(`No manual entry for ${name}\n`, 16);
-  return ok(page);
+  const lesson = lessonProvider ? lessonProvider(name) : null;
+  if (!lesson) return ok(page);
+  const body = lesson
+    .split("\n")
+    .map((l) => `       ${l}`)
+    .join("\n");
+  return ok(`${page}\nLESSON\n${body}\n`);
 }

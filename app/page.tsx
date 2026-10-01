@@ -1,7 +1,7 @@
 import dynamic from "next/dynamic";
 
-// TerminalGame mounts xterm.js, which needs the DOM; keep it client-only.
-const TerminalGame = dynamic(() => import("@/components/TerminalGame"), {
+// GameFlow mounts xterm.js (via TerminalGame), which needs the DOM; keep it client-only.
+const GameFlow = dynamic(() => import("@/components/GameFlow"), {
   ssr: false,
   loading: () => (
     <main className="flex min-h-screen items-center justify-center bg-[#0b0e14]">
@@ -13,5 +13,5 @@ const TerminalGame = dynamic(() => import("@/components/TerminalGame"), {
 });
 
 export default function Home() {
-  return <TerminalGame />;
+  return <GameFlow />;
 }
