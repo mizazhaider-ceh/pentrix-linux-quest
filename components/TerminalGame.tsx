@@ -384,7 +384,7 @@ export default function TerminalGame({ onOpenMap, onOpenLessons }: TerminalGameP
             ) : bossUnlocked ? (
               <div className="rounded border border-[#232a3a] p-3">
                 <p className="text-sm text-[#e6e9f0]">
-                  All 13 challenges done. The drill is ready when you are.
+                  All {standardChallenges.length} challenges done. The drill is ready when you are.
                 </p>
                 <button
                   type="button"

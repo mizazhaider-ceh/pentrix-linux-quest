@@ -24,7 +24,7 @@ export const SAVE_KEY = "nexus-linux-quest-v1";
 export const HINT_COST = 5;
 export const LESSON_XP = 5;
 export const CTF_ZONE = 9;
-export const STANDARD_PER_ZONE = 13;
+export const STANDARD_PER_ZONE = 19;
 export const ZONE_UNLOCK_THRESHOLD = 10;
 
 export interface LevelDef {
@@ -40,6 +40,8 @@ export const LEVELS: LevelDef[] = [
   { xp: 900, name: "Veteran" },
   { xp: 1400, name: "Ghost" },
   { xp: 2000, name: "Nexus Legend" },
+  { xp: 2800, name: "Mythic" },
+  { xp: 3800, name: "Station Commander" },
 ];
 
 /**
@@ -290,6 +292,21 @@ export class GameStore {
     }
     return {
       ...this.persisted,
+      // Snapshot every mutable nested structure with a fresh copy. The store
+      // mutates `persisted` in place, so without this every derived snapshot
+      // would share the same nested references and React memos depending on
+      // e.g. state.completed or state.unlockedZones would never recompute
+      // (briefing stuck on cleared challenge, frozen progress bars, ...).
+      completed: { ...this.persisted.completed },
+      hintsUsed: { ...this.persisted.hintsUsed },
+      unlockedZones: [...this.persisted.unlockedZones],
+      achievements: [...this.persisted.achievements],
+      ctfFlags: [...this.persisted.ctfFlags],
+      bossBeatClock: { ...this.persisted.bossBeatClock },
+      lessonsViewed: { ...this.persisted.lessonsViewed },
+      hintLevels: { ...this.persisted.hintLevels },
+      mastery: { ...this.persisted.mastery },
+      bossNoHints: [...this.persisted.bossNoHints],
       level,
       levelName,
       challengeIndex,
@@ -315,7 +332,7 @@ export class GameStore {
 
   /**
    * The challenge the player should be working on right now, or null when the
-   * current zone is fully cleared. Boss drills only appear after all 13
+   * current zone is fully cleared. Boss drills only appear after all 19
    * standard challenges of the zone are complete.
    */
   getActive(): ActiveChallenge | null {

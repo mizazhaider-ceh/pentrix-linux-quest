@@ -481,7 +481,23 @@ export class ShellImpl implements Shell {
     s = s.replace(/\$(\{([^}]*)\}|([A-Za-z_][A-Za-z0-9_]*)|\?|\$)/g, (m, _g1, braced: string, name: string) => {
       if (m === "$?") return String(this.exitCodeVal);
       if (m === "$$") return String(this.shellPid);
-      if (braced !== undefined) return env[braced] ?? "";
+      if (braced !== undefined) {
+        // ${VAR:-default} / ${VAR-default}: default when unset (:- also when empty)
+        const defM = /^([A-Za-z_][A-Za-z0-9_]*)(:-|-)(.*)$/.exec(braced);
+        if (defM) {
+          const val = env[defM[1]];
+          const missing = defM[2] === ":-" ? val === undefined || val === "" : val === undefined;
+          return missing ? defM[3] : val ?? "";
+        }
+        // ${VAR:+alt} / ${VAR+alt}: alt when set (non-empty for :+)
+        const altM = /^([A-Za-z_][A-Za-z0-9_]*)(:\+|\+)(.*)$/.exec(braced);
+        if (altM) {
+          const val = env[altM[1]];
+          const present = altM[2] === ":+" ? val !== undefined && val !== "" : val !== undefined;
+          return present ? altM[3] : "";
+        }
+        return env[braced] ?? "";
+      }
       if (name !== undefined) return env[name] ?? "";
       return m;
     });
@@ -701,6 +717,30 @@ export class ShellImpl implements Shell {
     return { out, code };
   }
 
+  private runWhileReadLoop(varName: string, body: string, inputFile: string | null): { out: string; code: number } {
+    let content = "";
+    if (inputFile) {
+      const abs = this.resolve(inputFile);
+      const node = this.fs.getNode(abs);
+      if (!node || node.type !== "file") {
+        return { out: `bash: ${inputFile}: No such file or directory\n`, code: 1 };
+      }
+      content = node.content;
+    }
+    const lines = content === "" ? [] : content.split("\n");
+    if (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
+    let out = "";
+    let code = 0;
+    for (const line of lines) {
+      this.env[varName] = line;
+      const r = this.runLine(body);
+      out += r.out;
+      code = r.code;
+    }
+    this.exitCodeVal = code;
+    return { out, code };
+  }
+
   private runLine(line: string): { out: string; code: number } {
     const trimmed = line.trim();
     // for-loops may be followed by more commands: `for i in 1 2; do echo $i; done; echo fin`
@@ -708,6 +748,16 @@ export class ShellImpl implements Shell {
     if (fm) {
       const r = this.runForLoop(fm[1], fm[2], fm[3]);
       const rest = trimmed.slice(fm[0].length).replace(/^\s*;\s*/, "");
+      this.exitCodeVal = r.code;
+      if (!rest) return r;
+      const r2 = this.runLine(rest);
+      return { out: r.out + r2.out, code: r2.code };
+    }
+    // while-read loops: `while read h; do echo "checking $h"; done < /path/file`
+    const wm = /^while\s+read\s+([A-Za-z_][A-Za-z0-9_]*)\s*;\s*do\s+(.+?);\s*done\s*(?:<\s*(\S+))?\s*(;|$)/.exec(trimmed);
+    if (wm) {
+      const r = this.runWhileReadLoop(wm[1], wm[2], wm[3] ?? null);
+      const rest = trimmed.slice(wm[0].length).replace(/^\s*;\s*/, "");
       this.exitCodeVal = r.code;
       if (!rest) return r;
       const r2 = this.runLine(rest);

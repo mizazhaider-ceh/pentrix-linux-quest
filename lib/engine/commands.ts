@@ -584,9 +584,10 @@ function cmdMv(io: CmdIO): CmdResult {
 /* ------------------------------------------------------------------ */
 
 function cmdCat(io: CmdIO): CmdResult {
-  const { flags, rest, err } = parseShortFlags(io.args, "n", "cat");
+  const { flags, rest, err } = parseShortFlags(io.args, "nA", "cat");
   if (err) return fail(err, 2);
   const number = flags.has("n");
+  const showAll = flags.has("A");
   if (rest.length === 0) return ok(io.stdin);
   let out = "";
   let errOut = "";
@@ -598,7 +599,11 @@ function cmdCat(io: CmdIO): CmdResult {
       code = 1;
       continue;
     }
-    const content = r.content ?? "";
+    let content = r.content ?? "";
+    if (showAll) {
+      // -A: reveal hidden characters. Tabs become ^I, every line end gets $.
+      content = content.replace(/\t/g, "^I").replace(/\n/g, "$\n");
+    }
     out += number
       ? splitLines(content)
           .map((l, i) => `${String(i + 1).padStart(6)}  ${l}\n`)
@@ -612,6 +617,9 @@ function headTail(io: CmdIO, cmd: "head" | "tail"): CmdResult {
   const args = [...io.args];
   let count = 10;
   let bytes = false;
+  // tail -n +N prints from line N to the end; head -n -N drops the last N lines.
+  let fromStart = false;
+  let dropLast = 0;
   const rest: string[] = [];
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
@@ -622,13 +630,29 @@ function headTail(io: CmdIO, cmd: "head" | "tail"): CmdResult {
     }
     if (a === "-n" || a === "-c") {
       const v = args[++i];
-      if (v === undefined || !/^\d+$/.test(v)) return fail(`${cmd}: invalid number of ${a === "-n" ? "lines" : "bytes"}: '${v ?? ""}'\n`);
-      count = parseInt(v, 10);
+      if (v === undefined || !/^[+-]?\d+$/.test(v)) return fail(`${cmd}: invalid number of ${a === "-n" ? "lines" : "bytes"}: '${v ?? ""}'\n`);
+      if (v.startsWith("+") && cmd === "tail" && a === "-n") {
+        fromStart = true;
+        count = parseInt(v.slice(1), 10);
+      } else if (v.startsWith("-") && cmd === "head" && a === "-n") {
+        dropLast = parseInt(v.slice(1), 10);
+      } else {
+        count = parseInt(v, 10);
+      }
       bytes = a === "-c";
       continue;
     }
-    if (/^-[nc]\d+$/.test(a)) {
-      count = parseInt(a.slice(2), 10);
+    const attached = /^-[nc]([+-]?\d+)$/.exec(a);
+    if (attached) {
+      const v = attached[1];
+      if (v.startsWith("+") && cmd === "tail" && a[1] === "n") {
+        fromStart = true;
+        count = parseInt(v.slice(1), 10);
+      } else if (v.startsWith("-") && cmd === "head" && a[1] === "n") {
+        dropLast = parseInt(v.slice(1), 10);
+      } else {
+        count = parseInt(v, 10);
+      }
       bytes = a[1] === "c";
       continue;
     }
@@ -655,7 +679,12 @@ function headTail(io: CmdIO, cmd: "head" | "tail"): CmdResult {
       out += cmd === "head" ? input.content.slice(0, count) : input.content.slice(Math.max(0, input.content.length - count));
     } else {
       const lines = splitLines(input.content);
-      const picked = cmd === "head" ? lines.slice(0, count) : lines.slice(Math.max(0, lines.length - count));
+      let picked: string[];
+      if (cmd === "head") {
+        picked = dropLast > 0 ? lines.slice(0, Math.max(0, lines.length - dropLast)) : lines.slice(0, count);
+      } else {
+        picked = fromStart ? lines.slice(Math.max(0, count - 1)) : lines.slice(Math.max(0, lines.length - count));
+      }
       if (picked.length > 0) out += picked.join("\n") + "\n";
     }
   });
@@ -730,7 +759,7 @@ function cmdWc(io: CmdIO): CmdResult {
 }
 
 function cmdDiff(io: CmdIO): CmdResult {
-  const { rest, err } = parseShortFlags(io.args, "qsu", "diff");
+  const { flags, rest, err } = parseShortFlags(io.args, "qsu", "diff");
   if (err) return fail(err, 2);
   if (rest.length < 2) return fail("diff: missing operand\nTry 'diff --help' for more information.\n");
   const ra = readInput(io, rest[0]);
@@ -740,6 +769,10 @@ function cmdDiff(io: CmdIO): CmdResult {
   const a = splitLines(ra.content ?? "");
   const b = splitLines(rb.content ?? "");
   if (a.join("\n") === b.join("\n")) return ok("");
+  // quiet mode: just report that files differ
+  if (flags.has("q")) {
+    return ok(`Files ${rest[0]} and ${rest[1]} differ\n`, 1);
+  }
   // LCS table
   const n = a.length;
   const m = b.length;
@@ -768,6 +801,84 @@ function cmdDiff(io: CmdIO): CmdResult {
   }
   while (i < n) ops.push({ t: "del", line: a[i++] });
   while (j < m) ops.push({ t: "ins", line: b[j++] });
+  // unified format (-u): ---/+++ headers plus @@ hunks with 3 lines of context
+  if (flags.has("u")) {
+    const CONTEXT = 3;
+    type Hunk = { aStart: number; bStart: number; ops: Op[] };
+    const hunks: Hunk[] = [];
+    let p = 0;
+    let pa = 0;
+    let pb = 0;
+    while (p < ops.length) {
+      if (ops[p].t === "eq") {
+        pa++;
+        pb++;
+        p++;
+        continue;
+      }
+      const hunkOps: Op[] = [];
+      const aStart = Math.max(0, pa - CONTEXT);
+      const bStart = Math.max(0, pb - CONTEXT);
+      // rewind to include leading context
+      for (let r = pa - 1; r >= aStart; r--) {
+        hunkOps.unshift({ t: "eq", line: a[r] });
+      }
+      // ca/cb start at pa/pb: the unshifted context covers [aStart, pa)
+      let ca = pa;
+      let cb = pb;
+      while (p < ops.length) {
+        const o = ops[p];
+        hunkOps.push(o);
+        if (o.t === "eq") {
+          ca++;
+          cb++;
+        } else if (o.t === "del") {
+          ca++;
+        } else {
+          cb++;
+        }
+        p++;
+        // stop after CONTEXT trailing context lines, but keep going through changes
+        if (o.t === "eq") {
+          let run = 0;
+          let q = p;
+          while (q < ops.length && ops[q].t === "eq" && run < CONTEXT) {
+            run++;
+            q++;
+          }
+          if (run >= CONTEXT) {
+            for (let r = 0; r < CONTEXT; r++) {
+              const oo = ops[p++];
+              hunkOps.push(oo);
+              ca++;
+              cb++;
+            }
+            break;
+          }
+        }
+      }
+      // merge with previous hunk when they overlap
+      const prev = hunks[hunks.length - 1];
+      if (prev && aStart <= prev.aStart + prev.ops.filter((o) => o.t !== "ins").length) {
+        for (const o of hunkOps) prev.ops.push(o);
+      } else {
+        hunks.push({ aStart, bStart, ops: hunkOps });
+      }
+      pa = ca;
+      pb = cb;
+    }
+    const urange = (s: number, e: number) => (e - s <= 1 ? `${s + 1}` : `${s + 1},${e - s}`);
+    let out = `--- ${rest[0]}\n+++ ${rest[1]}\n`;
+    for (const h of hunks) {
+      const aCount = h.ops.filter((o) => o.t !== "ins").length;
+      const bCount = h.ops.filter((o) => o.t !== "del").length;
+      out += `@@ -${urange(h.aStart, h.aStart + aCount)} +${urange(h.bStart, h.bStart + bCount)} @@\n`;
+      for (const o of h.ops) {
+        out += (o.t === "eq" ? " " : o.t === "del" ? "-" : "+") + o.line + "\n";
+      }
+    }
+    return ok(out, 1);
+  }
   // group into hunks
   let out = "";
   let ai = 0;
@@ -1105,6 +1216,8 @@ function cmdCut(io: CmdIO): CmdResult {
 interface AwkRule {
   pattern: string | null;
   action: string | null;
+  /** Comparison pattern like $3 > 100 (null when not a comparison). */
+  comparison?: { field: string; op: string; value: string } | null;
 }
 
 function parseAwkProgram(prog: string): AwkRule[] | null {
@@ -1117,6 +1230,7 @@ function parseAwkProgram(prog: string): AwkRule[] | null {
     skipWs();
     if (i >= prog.length) break;
     let pattern: string | null = null;
+    let comparison: { field: string; op: string; value: string } | null = null;
     let action: string | null = null;
     if (prog[i] === "/") {
       i++;
@@ -1131,6 +1245,17 @@ function parseAwkProgram(prog: string): AwkRule[] | null {
       i++; // closing /
       pattern = pat;
       skipWs();
+    } else {
+      // comparison pattern: $3 > 100, $1 == "x", NF > 2  (ends at the action brace)
+      const brace = prog.indexOf("{", i);
+      if (brace !== -1) {
+        const condText = prog.slice(i, brace).trim();
+        const cm = /^(\$\d+|NF|NR|\"[^\"]*\"|'[^']*')\s*(==|!=|>=|<=|>|<)\s*(.+)$/.exec(condText);
+        if (cm && condText !== "") {
+          comparison = { field: cm[1], op: cm[2], value: cm[3].trim() };
+          i = brace;
+        }
+      }
     }
     if (prog[i] === "{") {
       i++;
@@ -1144,10 +1269,10 @@ function parseAwkProgram(prog: string): AwkRule[] | null {
       }
       if (depth !== 0) return null;
       action = act.trim();
-    } else if (pattern === null) {
+    } else if (pattern === null && comparison === null) {
       return null;
     }
-    rules.push({ pattern, action });
+    rules.push({ pattern, action, comparison });
   }
   return rules;
 }
@@ -1239,6 +1364,38 @@ function cmdAwk(io: CmdIO): CmdResult {
           } catch {
             return fail(`awk: invalid regex /${rule.pattern}/\n`, 2);
           }
+        } else if (rule.comparison) {
+          const cmp = rule.comparison;
+          const rawField = (f: string): string => {
+            if (/^\$\d+$/.test(f)) {
+              const n = parseInt(f.slice(1), 10);
+              return n === 0 ? line : flds[n - 1] ?? "";
+            }
+            if (f === "NF") return String(flds.length);
+            if (f === "NR") return String(nr);
+            return f.replace(/^["']|["']$/g, "");
+          };
+          const left = rawField(cmp.field);
+          let right = cmp.value.replace(/^["']|["']$/g, "");
+          const ln = parseFloat(left);
+          const rn = parseFloat(right);
+          const numeric = !Number.isNaN(ln) && !Number.isNaN(rn) && left.trim() !== "" && right.trim() !== "";
+          if (numeric) {
+            right = String(rn);
+            matched =
+              cmp.op === ">" ? ln > rn :
+              cmp.op === "<" ? ln < rn :
+              cmp.op === ">=" ? ln >= rn :
+              cmp.op === "<=" ? ln <= rn :
+              cmp.op === "==" ? ln === rn : ln !== rn;
+          } else {
+            matched =
+              cmp.op === "==" ? left === right :
+              cmp.op === "!=" ? left !== right :
+              cmp.op === ">" ? left > right :
+              cmp.op === "<" ? left < right :
+              cmp.op === ">=" ? left >= right : left <= right;
+          }
         }
         if (matched) {
           if (rule.action === null) out += line + "\n";
@@ -1260,6 +1417,8 @@ interface SedOp {
   pat?: string;
   rep?: string;
   global?: boolean;
+  /** Line-number address: 1-based start, end (null = to end of file via $). */
+  lineAddr?: { start: number; end: number | null } | null;
 }
 
 function parseSedProgram(prog: string): SedOp[] | null {
@@ -1278,6 +1437,18 @@ function parseSedProgram(prog: string): SedOp[] | null {
     part = part.trim();
     if (part === "") continue;
     let addr: string | null = null;
+    let lineAddr: { start: number; end: number | null } | null = null;
+    // line-number addresses: N, N,M, $, N,$  (e.g. 3,5p or 2d)
+    const lineAddrMatch = /^(\d+|\$)(,(\d+|\$))?(?=[sdp]\b|sdp?$|[sdp][^a-zA-Z]|$)/.exec(part);
+    if (lineAddrMatch && !part.startsWith("/")) {
+      const toNum = (s: string): number | null => (s === "$" ? null : parseInt(s, 10));
+      const start = toNum(lineAddrMatch[1]);
+      const end = lineAddrMatch[3] !== undefined ? toNum(lineAddrMatch[3]) : start;
+      if (start !== null) {
+        lineAddr = { start, end };
+        part = part.slice(lineAddrMatch[0].length);
+      }
+    }
     if (part.startsWith("/")) {
       const end = part.indexOf("/", 1);
       if (end === -1) return null;
@@ -1296,11 +1467,11 @@ function parseSedProgram(prog: string): SedOp[] | null {
       }
       segs.push(seg);
       if (segs.length < 2) return null;
-      ops.push({ addr, kind: "s", pat: segs[0], rep: segs[1], global: (segs[2] ?? "").includes("g") });
+      ops.push({ addr, lineAddr, kind: "s", pat: segs[0], rep: segs[1], global: (segs[2] ?? "").includes("g") });
     } else if (part === "d") {
-      ops.push({ addr, kind: "d" });
+      ops.push({ addr, lineAddr, kind: "d" });
     } else if (part === "p") {
-      ops.push({ addr, kind: "p" });
+      ops.push({ addr, lineAddr, kind: "p" });
     } else {
       return null;
     }
@@ -1327,12 +1498,18 @@ function cmdSed(io: CmdIO): CmdResult {
   if (prog === null) return fail("sed: no script given\n");
   const ops = parseSedProgram(prog);
   if (!ops) return fail(`sed: -e expression #1, char 1: unknown command\n`);
-  const applyLine = (line: string): { out: string[]; drop: boolean } => {
+  const applyLine = (line: string, lineNo: number, totalLines: number): { out: string[]; drop: boolean } => {
     const printed: string[] = [];
     let cur = line;
     let drop = false;
     for (const op of ops) {
-      const addrOk = op.addr === null || new RegExp(breToJs(op.addr)).test(cur);
+      let addrOk: boolean;
+      if (op.lineAddr) {
+        const end = op.lineAddr.end ?? totalLines;
+        addrOk = lineNo >= op.lineAddr.start && lineNo <= end;
+      } else {
+        addrOk = op.addr === null || new RegExp(breToJs(op.addr)).test(cur);
+      }
       if (!addrOk) continue;
       if (op.kind === "d") {
         drop = true;
@@ -1367,10 +1544,11 @@ function cmdSed(io: CmdIO): CmdResult {
   let code = 0;
   const process = (content: string): string => {
     let res = "";
-    for (const line of splitLines(content)) {
-      const r = applyLine(line);
+    const lines = splitLines(content);
+    lines.forEach((line, idx) => {
+      const r = applyLine(line, idx + 1, lines.length);
       if (!r.drop) for (const l of r.out) res += l + "\n";
-    }
+    });
     return res;
   };
   if (rest.length === 0) {
@@ -1496,13 +1674,22 @@ function cmdFind(io: CmdIO): CmdResult {
   let typeF: string | null = null;
   let doDelete = false;
   let maxDepth = Infinity;
+  // -size N[cwbkMG]: match on file size, rounded up to the unit (default b=512).
+  // +N = strictly greater, -N = strictly less, N = equal after rounding.
+  let sizePred: { sign: string; n: number; unit: number } | null = null;
   let j = i;
   while (j < args.length) {
     const a = args[j];
     if (a === "-name") names.push(args[++j] ?? "");
     else if (a === "-iname") inames.push(args[++j] ?? "");
     else if (a === "-type") typeF = args[++j] ?? "";
-    else if (a === "-delete") doDelete = true;
+    else if (a === "-size") {
+      const spec = args[++j] ?? "";
+      const sm = /^([+-]?)(\d+)([cwbkMG])?$/.exec(spec);
+      if (!sm) return fail(`find: invalid -size argument \`${spec}'\n`);
+      const units: Record<string, number> = { c: 1, w: 2, b: 512, k: 1024, M: 1048576, G: 1073741824 };
+      sizePred = { sign: sm[1], n: parseInt(sm[2], 10), unit: units[sm[3] ?? "b"] };
+    } else if (a === "-delete") doDelete = true;
     else if (a === "-print") {
       /* default */
     } else if (a === "-maxdepth") maxDepth = parseInt(args[++j] ?? "0", 10);
@@ -1538,6 +1725,15 @@ function cmdFind(io: CmdIO): CmdResult {
       if (typeF === "l") continue;
       if (!names.every((pat) => globMatch(pat, base, false))) continue;
       if (!inames.every((pat) => globMatch(pat, base, true))) continue;
+      if (sizePred) {
+        const bytes = n.type === "file" ? n.content.length : 0;
+        const rounded = Math.ceil(bytes / sizePred.unit);
+        const hit =
+          sizePred.sign === "+" ? rounded > sizePred.n :
+          sizePred.sign === "-" ? rounded < sizePred.n :
+          rounded === sizePred.n;
+        if (!hit) continue;
+      }
       if (doDelete) {
         if (ap === abs) continue;
         try {
@@ -2956,8 +3152,8 @@ export const MAN_PAGES: Record<string, string> = {
     [], ["mv report.bak report.final", "mv a.tmp b.tmp /home/agent/ops/quarantine/"]),
   cat: M("cat", "concatenate and print files", "cat [OPTION]... [FILE]...",
     "Concatenate FILE(s) to standard output. With no FILE, or when FILE is -, read standard input.",
-    [["-n", "number all output lines"]],
-    ["cat /home/agent/intel/memo.txt", "cat -n /home/agent/intel/access.log"]),
+    [["-n", "number all output lines"], ["-A", "show all: reveal hidden characters (tabs as ^I, line ends as $)"]],
+    ["cat /home/agent/intel/memo.txt", "cat -n /home/agent/intel/access.log", "cat -A /home/agent/conf/app.conf"]),
   head: M("head", "output the first part of files", "head [OPTION]... [FILE]...",
     "Print the first 10 lines of each FILE to standard output.",
     [["-n N", "print the first N lines instead of 10"], ["-c N", "print the first N bytes"]],

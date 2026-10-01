@@ -9,7 +9,7 @@ export const metadata = {
 const RULES = [
   {
     title: "Sectors open in order",
-    body: "There are eight sectors, each with 13 challenges. Clear at least 10 in a sector to unlock the next one. No skipping. The station likes its paperwork in order.",
+    body: "There are eight sectors, each with 19 challenges plus a lockdown drill. Clear the drill to unlock the next sector. No skipping. The station likes its paperwork in order.",
   },
   {
     title: "Hints cost 5 XP",
@@ -17,7 +17,7 @@ const RULES = [
   },
   {
     title: "Lockdown drills are timed",
-    body: "Each sector ends with a lockdown drill, unlocked only after all 13 standard challenges are cleared. Beat it against the clock for a bonus achievement. If the timer runs out, the drill resets and you try again. No penalty, just pride.",
+    body: "Each sector ends with a lockdown drill, unlocked only after all 19 standard challenges are cleared. Beat it against the clock for a bonus achievement. If the timer runs out, the drill resets and you try again. No penalty, just pride.",
   },
   {
     title: "Your work persists",

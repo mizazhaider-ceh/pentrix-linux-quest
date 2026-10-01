@@ -24,8 +24,8 @@
  *
  * PROGRESSION
  * -----------
- * - Zones 1-8 unlock in order. Zone n+1 unlocks at 10/13 standard challenges
- *   complete in zone n; a zone's boss drill unlocks at 13/13.
+ * - Zones 1-8 unlock in order. A zone's boss drill unlocks at 19/19 standard
+ *   challenges complete; clearing the boss unlocks the next zone.
  * - After a boss falls, the next zone opens automatically. After the 8th
  *   boss, Operation Blackout (zone 9, the 5-flag graduation CTF) unlocks.
  * - Within a zone, challenges run in order and filesystem state persists
@@ -36,7 +36,8 @@
  * -----------
  * Easy 10, Medium 20, Hard 30, Boss 50, CTF flag 60 (300 total for all 5).
  * Hints cost 5 XP, never below zero. Levels: Rookie 0, Operator 200,
- * Specialist 500, Veteran 900, Ghost 1400, Nexus Legend 2000.
+ * Specialist 500, Veteran 900, Ghost 1400, Nexus Legend 2000, Mythic 2800,
+ * Station Commander 3800.
  *
  * BOSS TIMER
  * ----------

@@ -152,5 +152,38 @@ export function checkAchievements(state: AchievementState): string[] {
 
   if (Object.keys(state.hintsUsed).length >= 20) grant("persistent");
 
+  // ---- v3 expansion achievements ----
+
+  const completedCount = Object.keys(state.completed).length;
+  if (completedCount >= 50) grant("marathon");
+  if (completedCount >= 100) grant("centurion");
+  if (CHALLENGES.length > 0 && CHALLENGES.every((c) => state.completed[c.id])) {
+    grant("completionist");
+  }
+
+  let cleanZones = 0;
+  for (let zone = 1; zone <= 8; zone++) {
+    const ids = zoneChallengeIds(zone);
+    if (ids.length === 0) continue;
+    if (ids.every((id) => state.completed[id] && !state.hintsUsed[id])) cleanZones++;
+  }
+  if (cleanZones >= 3) grant("triple-clean");
+
+  const beatClockCount = Object.values(state.bossBeatClock).filter(Boolean).length;
+  if (beatClockCount >= 4) grant("drill-sergeant");
+  if (beatClockCount >= 8) grant("drill-master");
+
+  if (streakBest >= 15) grant("juggernaut");
+  if (streakBest >= 25) grant("untouchable");
+
+  if (quizAces >= 5) grant("quiz-master");
+
+  if ((state.bossNoHints ?? []).length >= 8) grant("flawless-commander");
+
+  const xp = state.xp ?? 0;
+  if (xp >= 1400) grant("ghost-protocol");
+  if (xp >= 2000) grant("living-legend");
+  if (xp >= 2800) grant("mythic");
+
   return newly;
 }
