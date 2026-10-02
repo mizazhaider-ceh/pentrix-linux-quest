@@ -1,0 +1,1583 @@
+import type { Challenge } from "./challenges";
+
+/**
+ * Zone 5 (Engine Room / Processes) expansion pack: proc-20 .. proc-124.
+ * Story frame: NEXUS-9 station, rogue processes squatting on CPU and holding
+ * ports. Evict them politely first (TERM), with signal 9 when needed.
+ * Difficulty: proc-20..64 easy (10 XP), proc-65..99 medium (20 XP),
+ * proc-100..124 hard (30 XP).
+ */
+export const CHALLENGES_PROC_X: Challenge[] = [
+  {
+    id: "proc-20",
+    zone: 5,
+    title: "Rogue Census",
+    briefing:
+      "NEXUS-9 hums with processes that should not be here. Before you evict anything, take a census of your own.",
+    task: "List your running processes.",
+    hint: "ps lists your processes: ps",
+    xp: 10,
+    verify: [{ type: "historyMatches", regex: "^\\s*ps\\s*$" }],
+  },
+  {
+    id: "proc-21",
+    zone: 5,
+    title: "Station Roll Call",
+    briefing:
+      "Your own list looks clean. The squatters might belong to other users, so widen the net to every process on the station.",
+    task: "List all processes on the system with full details.",
+    hint: "ps aux shows everything: ps aux",
+    xp: 10,
+    verify: [{ type: "historyMatches", regex: "^\\s*ps\\s+aux" }],
+  },
+  {
+    id: "proc-22",
+    zone: 5,
+    title: "The Full Dossier",
+    briefing:
+      "Full details are good, but the full-format listing adds the parent PID column. You want to know who spawned whom.",
+    task: "List all processes in full format.",
+    hint: "ps -ef gives the full listing: ps -ef",
+    xp: 10,
+    verify: [{ type: "historyMatches", regex: "^\\s*ps\\s+-ef" }],
+  },
+  {
+    id: "proc-23",
+    zone: 5,
+    title: "Park the Scanner",
+    briefing:
+      "You need a long sensor scan running while you keep working. Park it in the background so your terminal stays free.",
+    task: "Start 'sleep 500' as a background job.",
+    hint: "Append & to background a command: sleep 500 &",
+    xp: 10,
+    verify: [{ type: "historyMatches", regex: "sleep\\s+500\\s*&" }],
+  },
+  {
+    id: "proc-24",
+    zone: 5,
+    title: "Who Is Running",
+    briefing:
+      "You parked a job a moment ago. Confirm it is still there by listing your background jobs.",
+    task: "Start 'sleep 60' in the background, then list your background jobs.",
+    hint: "sleep 60 & then list the jobs: jobs",
+    xp: 10,
+    verify: [
+      { type: "historyMatches", regex: "sleep\\s+60\\s*&" },
+      { type: "historyMatches", regex: "^\\s*jobs\\b" },
+    ],
+  },
+  {
+    id: "proc-25",
+    zone: 5,
+    title: "Jobs With Numbers",
+    briefing:
+      "The chief wants job numbers next to names. The long listing adds the PID column your eviction orders need.",
+    task: "Start a background sleep of 130 seconds, then list your jobs with PIDs.",
+    hint: "sleep 130 & then the long format: jobs -l",
+    xp: 10,
+    verify: [
+      { type: "historyMatches", regex: "sleep\\s+130\\s*&" },
+      { type: "historyMatches", regex: "jobs\\s+-l" },
+    ],
+  },
+  {
+    id: "proc-26",
+    zone: 5,
+    title: "Single Dashboard",
+    briefing:
+      "top never quits on its own, and the chief hates interactive screens. Take one snapshot she can log.",
+    task: "Show a one-shot process summary with top in batch mode.",
+    hint: "Batch mode prints once and exits: top -b -n 1",
+    xp: 10,
+    verify: [{ type: "historyMatches", regex: "top\\s+-b\\s+-n\\s*1" }],
+  },
+  {
+    id: "proc-27",
+    zone: 5,
+    title: "Name That Sleeper",
+    briefing:
+      "A sleeper is hiding in the job list. Look it up by its process name.",
+    task: "Start 'sleep 505' in the background, then find it with pgrep.",
+    hint: "sleep 505 & then search by name: pgrep sleep",
+    xp: 10,
+    verify: [
+      { type: "historyMatches", regex: "sleep\\s+505\\s*&" },
+      { type: "historyMatches", regex: "^\\s*pgrep\\s+sleep" },
+    ],
+  },
+  {
+    id: "proc-28",
+    zone: 5,
+    title: "Full Line Lookup",
+    briefing:
+      "The name 'sleep' matches too much. Match against the full command line to pin down your exact sleeper.",
+    task: "Start 'sleep 510' in the background, then find it with pgrep matching the full command line.",
+    hint: "sleep 510 & then match the whole line: pgrep -f 'sleep 510'",
+    xp: 10,
+    verify: [
+      { type: "historyMatches", regex: "sleep\\s+510\\s*&" },
+      { type: "historyMatches", regex: "pgrep\\s+-f\\s+['\"]?sleep\\s+510" },
+    ],
+  },
+  {
+    id: "proc-29",
+    zone: 5,
+    title: "Mass Eviction",
+    briefing:
+      "One sleeper too many. End every sleep process by name in a single command.",
+    task: "Start 'sleep 515' in the background, then kill all sleep processes by name.",
+    hint: "sleep 515 & then evict by name: killall sleep",
+    xp: 10,
+    verify: [
+      { type: "historyMatches", regex: "sleep\\s+515\\s*&" },
+      { type: "historyMatches", regex: "killall\\s+sleep" },
+    ],
+  },
+  {
+    id: "proc-30",
+    zone: 5,
+    title: "Slot One Evicted",
+    briefing:
+      "You only know the job slot, not the PID. The shell tracks background jobs by number for exactly this.",
+    task: "Start 'sleep 520' in the background, then kill job number 1.",
+    hint: "sleep 520 & then kill the first job slot: kill %1",
+    xp: 10,
+    verify: [
+      { type: "historyMatches", regex: "sleep\\s+520\\s*&" },
+      { type: "historyMatches", regex: "kill\\s+%1" },
+    ],
+  },
+  {
+    id: "proc-31",
+    zone: 5,
+    title: "The Polite Signal",
+    briefing:
+      "Station protocol: ask nicely first. pkill sends TERM by default, which is the polite way to ask a process to leave.",
+    task: "Start 'sleep 525' in the background, then terminate it with pkill.",
+    hint: "sleep 525 & then the polite eviction: pkill sleep",
+    xp: 10,
+    verify: [
+      { type: "historyMatches", regex: "sleep\\s+525\\s*&" },
+      { type: "historyMatches", regex: "^\\s*pkill\\s+sleep" },
+    ],
+  },
+  {
+    id: "proc-32",
+    zone: 5,
+    title: "Lower the Priority",
+    briefing:
+      "Not every job deserves full CPU. Start your sleeper with a niceness of 10 so real work goes first.",
+    task: "Start 'sleep 530' in the background with niceness 10.",
+    hint: "nice -n sets the niceness: nice -n 10 sleep 530 &",
+    xp: 10,
+    verify: [{ type: "historyMatches", regex: "nice\\s+-n\\s+10\\s+sleep\\s+530" }],
+  },
+  {
+    id: "proc-33",
+    zone: 5,
+    title: "Logout Proof",
+    briefing:
+      "Your shift ends soon and the connection might drop. Launch a sleeper that ignores hangups.",
+    task: "Start 'sleep 535' with nohup in the background.",
+    hint: "nohup shields a process from hangups: nohup sleep 535 &",
+    xp: 10,
+    verify: [{ type: "historyMatches", regex: "nohup\\s+sleep\\s+535\\s*&" }],
+  },
+  {
+    id: "proc-34",
+    zone: 5,
+    title: "Pick Your Columns",
+    briefing:
+      "The process table is a wall of text. Trim it down to the two columns that matter: PID and command.",
+    task: "List processes showing only the PID and command columns.",
+    hint: "ps -o picks your columns: ps -o pid,cmd",
+    xp: 10,
+    verify: [{ type: "historyMatches", regex: "ps\\s+-o\\s+pid,cmd" }],
+  },
+  {
+    id: "proc-35",
+    zone: 5,
+    title: "Spot the Beacon",
+    briefing:
+      "A rogue beacon squats on port 4444, and you need proof it is running. Filter the full process list for it.",
+    task: "Search the full process listing for the beacon process.",
+    hint: "Pipe the full listing into grep: ps aux | grep beacon",
+    xp: 10,
+    verify: [{ type: "outputContains", text: "beacon" }],
+  },
+  {
+    id: "proc-36",
+    zone: 5,
+    title: "Read the Manual",
+    briefing:
+      "You keep guessing at pgrep flags. Stop guessing and read the manual page.",
+    task: "Open the manual page for pgrep.",
+    hint: "man opens manual pages: man pgrep",
+    xp: 10,
+    verify: [{ type: "historyMatches", regex: "^\\s*man\\s+pgrep" }],
+  },
+  {
+    id: "proc-37",
+    zone: 5,
+    title: "Locate the Tool",
+    briefing:
+      "Before you swing pkill around, confirm where the binary actually lives.",
+    task: "Show the full path of the pkill command.",
+    hint: "which finds the binary: which pkill",
+    xp: 10,
+    verify: [{ type: "outputContains", text: "/usr/bin/pkill" }],
+  },
+  {
+    id: "proc-38",
+    zone: 5,
+    title: "Builtin or Binary",
+    briefing:
+      "kill feels different from pkill. Check whether the shell implements it itself.",
+    task: "Ask the shell what kind of command kill is.",
+    hint: "type tells you the command type: type kill",
+    xp: 10,
+    verify: [{ type: "outputContains", text: "shell builtin" }],
+  },
+  {
+    id: "proc-39",
+    zone: 5,
+    title: "Signal Menu",
+    briefing:
+      "You cannot choose a signal if you do not know the menu. List every signal the kill command knows.",
+    task: "List all available signal names.",
+    hint: "kill -l prints the signal list: kill -l",
+    xp: 10,
+    verify: [{ type: "outputContains", text: "SIGTERM" }],
+  },
+  {
+    id: "proc-40",
+    zone: 5,
+    title: "Double Shift",
+    briefing:
+      "One scan is not enough. Run two sleepers at once and confirm both are on the roster.",
+    task: "Start 'sleep 540' and 'sleep 541' in the background, then list your jobs.",
+    hint: "sleep 540 & then sleep 541 & then check: jobs",
+    xp: 10,
+    verify: [
+      { type: "historyMatches", regex: "sleep\\s+540\\s*&" },
+      { type: "historyMatches", regex: "sleep\\s+541\\s*&" },
+      { type: "historyMatches", regex: "^\\s*jobs\\b" },
+    ],
+  },
+  {
+    id: "proc-41",
+    zone: 5,
+    title: "Repark the Job",
+    briefing:
+      "Your sleeper is parked, but the chief wants it explicitly sent to the background with bg. Humor her.",
+    task: "Start 'sleep 545' in the background, then send the latest job to the background with bg.",
+    hint: "sleep 545 & then: bg",
+    xp: 10,
+    verify: [
+      { type: "historyMatches", regex: "sleep\\s+545\\s*&" },
+      { type: "historyMatches", regex: "^\\s*bg\\s*$" },
+    ],
+  },
+  {
+    id: "proc-42",
+    zone: 5,
+    title: "Bring It Forward",
+    briefing:
+      "The scan finished its background phase. Pull the job into the foreground with fg.",
+    task: "Start 'sleep 550' in the background, then bring it to the foreground with fg.",
+    hint: "sleep 550 & then: fg",
+    xp: 10,
+    verify: [
+      { type: "historyMatches", regex: "sleep\\s+550\\s*&" },
+      { type: "historyMatches", regex: "^\\s*fg\\s*$" },
+    ],
+  },
+  {
+    id: "proc-43",
+    zone: 5,
+    title: "Gentle Termination",
+    briefing:
+      "Protocol says TERM first. Send the termination signal to job 1 and let it shut down cleanly.",
+    task: "Start 'sleep 555' in the background, then send SIGTERM to job 1.",
+    hint: "sleep 555 & then signal the job slot: kill -TERM %1",
+    xp: 10,
+    verify: [
+      { type: "historyMatches", regex: "sleep\\s+555\\s*&" },
+      { type: "historyMatches", regex: "kill\\s+-TERM\\s+%1" },
+    ],
+  },
+  {
+    id: "proc-44",
+    zone: 5,
+    title: "Hard Kill",
+    briefing:
+      "The sleeper ignored your polite signal. Escalate to signal 9, the one nothing can ignore.",
+    task: "Start 'sleep 560' in the background, then force-kill job 1 with signal 9.",
+    hint: "sleep 560 & then the unignorable one: kill -9 %1",
+    xp: 10,
+    verify: [
+      { type: "historyMatches", regex: "sleep\\s+560\\s*&" },
+      { type: "historyMatches", regex: "kill\\s+-9\\s+%1" },
+    ],
+  },
+  {
+    id: "proc-45",
+    zone: 5,
+    title: "Long Signal Name",
+    briefing:
+      "Signal names come in long form too. Send SIGTERM to job 1 using the full name.",
+    task: "Start 'sleep 565' in the background, then send SIGTERM to job 1 by its long name.",
+    hint: "sleep 565 & then: kill -SIGTERM %1",
+    xp: 10,
+    verify: [
+      { type: "historyMatches", regex: "sleep\\s+565\\s*&" },
+      { type: "historyMatches", regex: "kill\\s+-SIGTERM\\s+%1" },
+    ],
+  },
+  {
+    id: "proc-46",
+    zone: 5,
+    title: "Signal by Number",
+    briefing:
+      "Old station hands use numbers. TERM is signal 15. Speak their language.",
+    task: "Start 'sleep 570' in the background, then send signal 15 to job 1.",
+    hint: "sleep 570 & then by number: kill -15 %1",
+    xp: 10,
+    verify: [
+      { type: "historyMatches", regex: "sleep\\s+570\\s*&" },
+      { type: "historyMatches", regex: "kill\\s+-15\\s+%1" },
+    ],
+  },
+  {
+    id: "proc-47",
+    zone: 5,
+    title: "The -s Flag",
+    briefing:
+      "There is a third way to name a signal: the -s flag. Use it to send TERM to job 1.",
+    task: "Start 'sleep 575' in the background, then send TERM to job 1 with kill -s.",
+    hint: "sleep 575 & then: kill -s TERM %1",
+    xp: 10,
+    verify: [
+      { type: "historyMatches", regex: "sleep\\s+575\\s*&" },
+      { type: "historyMatches", regex: "kill\\s+-s\\s+TERM\\s+%1" },
+    ],
+  },
+  {
+    id: "proc-48",
+    zone: 5,
+    title: "Targeted Kill",
+    briefing:
+      "Two sleepers are parked and only one must go. Match the full command line so the other survives.",
+    task: "Start 'sleep 580' and 'sleep 581' in the background, then kill only the 580 one with pkill -f.",
+    hint: "Start both, then: pkill -f 'sleep 580'",
+    xp: 10,
+    verify: [
+      { type: "historyMatches", regex: "sleep\\s+580\\s*&" },
+      { type: "historyMatches", regex: "sleep\\s+581\\s*&" },
+      { type: "historyMatches", regex: "pkill\\s+-f\\s+['\"]?sleep\\s+580" },
+    ],
+  },
+  {
+    id: "proc-49",
+    zone: 5,
+    title: "Kill All Sleepers",
+    briefing:
+      "The engine room is littered with test sleepers. End them all by name in one command.",
+    task: "Start 'sleep 585' and 'sleep 586' in the background, then kill every sleep process by name.",
+    hint: "Start both, then: killall sleep",
+    xp: 10,
+    verify: [
+      { type: "historyMatches", regex: "sleep\\s+585\\s*&" },
+      { type: "historyMatches", regex: "sleep\\s+586\\s*&" },
+      { type: "historyMatches", regex: "killall\\s+sleep" },
+    ],
+  },
+  {
+    id: "proc-50",
+    zone: 5,
+    title: "Mild Niceness",
+    briefing:
+      "Niceness 10 was overkill. A gentle 5 still yields to real work without starving the scan.",
+    task: "Start 'sleep 590' in the background with niceness 5.",
+    hint: "nice -n 5 sleep 590 &",
+    xp: 10,
+    verify: [{ type: "historyMatches", regex: "nice\\s+-n\\s+5\\s+sleep\\s+590" }],
+  },
+  {
+    id: "proc-51",
+    zone: 5,
+    title: "Nice Shorthand",
+    briefing:
+      "Typing -n every time gets old. The shorthand form puts the number right after the dash.",
+    task: "Start 'sleep 595' in the background using the nice shorthand -5.",
+    hint: "nice -5 sleep 595 &",
+    xp: 10,
+    verify: [{ type: "historyMatches", regex: "nice\\s+-5\\s+sleep\\s+595" }],
+  },
+  {
+    id: "proc-52",
+    zone: 5,
+    title: "No Hangup",
+    briefing:
+      "Another shift change, another dropped connection. Shield your sleeper from the hangup signal.",
+    task: "Start 'sleep 600' with nohup in the background.",
+    hint: "nohup sleep 600 &",
+    xp: 10,
+    verify: [{ type: "historyMatches", regex: "nohup\\s+sleep\\s+600\\s*&" }],
+  },
+  {
+    id: "proc-53",
+    zone: 5,
+    title: "Count the Sleepers",
+    briefing:
+      "The chief asks how many sleepers you parked. Count them with a pipeline instead of counting on your fingers.",
+    task: "Start 'sleep 605' and 'sleep 606' in the background, then count them via pgrep and wc.",
+    hint: "Start both, then: pgrep -f 'sleep 60' | wc -l",
+    xp: 10,
+    verify: [
+      {
+        type: "historyMatches",
+        regex: "pgrep\\s+-f\\s+['\"]?sleep\\s+60['\"]?\\s*\\|\\s*wc\\s+-l",
+      },
+      { type: "outputContains", text: "2" },
+    ],
+  },
+  {
+    id: "proc-54",
+    zone: 5,
+    title: "Grep the Table",
+    briefing:
+      "Your sleeper should be visible in the full process table. Prove it with a filtered listing.",
+    task: "Start 'sleep 610' in the background, then find its line in the full process table.",
+    hint: "sleep 610 & then: ps -ef | grep 'sleep 610'",
+    xp: 10,
+    verify: [
+      { type: "historyMatches", regex: "ps\\s+-ef\\s*\\|\\s*grep" },
+      { type: "outputContains", text: "sleep 610" },
+    ],
+  },
+  {
+    id: "proc-55",
+    zone: 5,
+    title: "Top Shows Sleepers",
+    briefing:
+      "top shows your background jobs in its task table too. Filter the snapshot for your sleeper.",
+    task: "Start 'sleep 615' in the background, then find it in a one-shot top snapshot.",
+    hint: "sleep 615 & then: top -b -n 1 | grep 'sleep 615'",
+    xp: 10,
+    verify: [
+      { type: "historyMatches", regex: "top\\s+-b\\s+-n\\s*1\\s*\\|\\s*grep" },
+      { type: "outputContains", text: "sleep 615" },
+    ],
+  },
+  {
+    id: "proc-56",
+    zone: 5,
+    title: "Two Jobs, Two Kills",
+    briefing:
+      "Two sleepers, two job slots, two kill commands. Clean them up one slot at a time.",
+    task: "Start 'sleep 620' and 'sleep 621' in the background, then kill job 1 and job 2.",
+    hint: "Start both, then kill %1, then kill %2",
+    xp: 10,
+    verify: [
+      { type: "historyMatches", regex: "kill\\s+%1" },
+      { type: "historyMatches", regex: "kill\\s+%2" },
+    ],
+  },
+  {
+    id: "proc-57",
+    zone: 5,
+    title: "Jobs to File",
+    briefing:
+      "The chief wants the job roster in writing. Redirect the jobs listing into a file under /home/agent/proc/.",
+    task: "Start 'sleep 625' in the background, then save the jobs listing to /home/agent/proc/jobs.txt.",
+    hint: "sleep 625 & then: jobs > /home/agent/proc/jobs.txt",
+    xp: 10,
+    setup: { dirs: ["/home/agent/proc"] },
+    verify: [
+      { type: "fileExists", path: "/home/agent/proc/jobs.txt" },
+      { type: "fileContains", path: "/home/agent/proc/jobs.txt", text: "sleep 625" },
+    ],
+  },
+  {
+    id: "proc-58",
+    zone: 5,
+    title: "PIDs to File",
+    briefing:
+      "Eviction orders need PIDs on paper. Save the PID of your sleeper to a file.",
+    task: "Start 'sleep 630' in the background, then save its PID to /home/agent/proc/pids.txt.",
+    hint: "sleep 630 & then: pgrep -f 'sleep 630' > /home/agent/proc/pids.txt",
+    xp: 10,
+    setup: { dirs: ["/home/agent/proc"] },
+    verify: [
+      { type: "fileExists", path: "/home/agent/proc/pids.txt" },
+      {
+        type: "historyMatches",
+        regex: "pgrep\\s+-f.*>\\s*/home/agent/proc/pids.txt",
+      },
+    ],
+  },
+  {
+    id: "proc-59",
+    zone: 5,
+    title: "Table to File",
+    briefing:
+      "Log the full process table to a file, then pull your sleeper's line back out of it.",
+    task: "Start 'sleep 635' in the background, save the full process table to /home/agent/proc/table.txt, then grep your sleeper from the file.",
+    hint: "sleep 635 & then ps -ef > /home/agent/proc/table.txt then grep 'sleep 635' /home/agent/proc/table.txt",
+    xp: 10,
+    setup: { dirs: ["/home/agent/proc"] },
+    verify: [
+      { type: "fileExists", path: "/home/agent/proc/table.txt" },
+      { type: "outputContains", text: "sleep 635" },
+    ],
+  },
+  {
+    id: "proc-60",
+    zone: 5,
+    title: "Watch the Beacon",
+    briefing:
+      "The beacon on port 4444 is still squatting. Look up its PID with a full command line search.",
+    task: "Find the beacon process with pgrep matching the full command line.",
+    hint: "pgrep -f beacon",
+    xp: 10,
+    verify: [{ type: "historyMatches", regex: "^\\s*pgrep\\s+-f\\s+beacon" }],
+  },
+  {
+    id: "proc-61",
+    zone: 5,
+    title: "Evict the Beacon",
+    briefing:
+      "Proof is not enough. The beacon runs as an unprivileged squatter, so you are allowed to evict it. Do it.",
+    task: "Terminate the beacon process by name with pkill.",
+    hint: "pkill beacon",
+    xp: 10,
+    verify: [{ type: "historyMatches", regex: "^\\s*pkill\\s+beacon" }],
+  },
+  {
+    id: "proc-62",
+    zone: 5,
+    title: "Confirm the Eviction",
+    briefing:
+      "Never trust an eviction you have not confirmed. Kill the beacon, then prove it is gone.",
+    task: "Kill the beacon with pkill -f, then confirm no beacon remains.",
+    hint: "pkill -f beacon then: pgrep beacon || echo beacon-gone",
+    xp: 10,
+    verify: [
+      { type: "historyMatches", regex: "pkill\\s+-f\\s+beacon" },
+      { type: "outputContains", text: "beacon-gone" },
+    ],
+  },
+  {
+    id: "proc-63",
+    zone: 5,
+    title: "Surgical Strike",
+    briefing:
+      "Two sleepers are parked and the wrong one costs you the scan. Remove only the 640 sleeper and prove 641 survived.",
+    task: "Start 'sleep 640' and 'sleep 641' in the background, kill only the 640 one with pkill -f, then list jobs.",
+    hint: "Start both, then pkill -f 'sleep 640', then jobs",
+    xp: 10,
+    verify: [
+      { type: "historyMatches", regex: "pkill\\s+-f\\s+['\"]?sleep\\s+640" },
+      { type: "outputContains", text: "sleep 641" },
+    ],
+  },
+  {
+    id: "proc-64",
+    zone: 5,
+    title: "Room Sweeper",
+    briefing:
+      "Sweep the whole room: kill every sleeper you parked and confirm the air is clear.",
+    task: "Start 'sleep 645' and 'sleep 646' in the background, kill them all by pattern, then confirm none remain.",
+    hint: "Start both, then pkill -f 'sleep 64', then pgrep -f 'sleep 64' || echo all-clear",
+    xp: 10,
+    verify: [
+      { type: "historyMatches", regex: "pkill\\s+-f\\s+['\"]?sleep\\s+64" },
+      { type: "outputContains", text: "all-clear" },
+    ],
+  },
+  {
+    id: "proc-65",
+    zone: 5,
+    title: "Triple Watch",
+    briefing:
+      "Three sensor scans, one roster check. Park three sleepers, list them with PIDs, then sweep them.",
+    task: "Start 'sleep 650', 'sleep 651' and 'sleep 652' in the background, list jobs with PIDs, then kill them by pattern.",
+    hint: "Start all three, then jobs -l, then pkill -f 'sleep 65'",
+    xp: 20,
+    verify: [
+      { type: "historyMatches", regex: "sleep\\s+65[012]\\s*&" },
+      { type: "historyMatches", regex: "jobs\\s+-l" },
+      { type: "historyMatches", regex: "pkill\\s+-f\\s+['\"]?sleep\\s+65" },
+    ],
+  },
+  {
+    id: "proc-66",
+    zone: 5,
+    title: "Spare the First",
+    briefing:
+      "Two sleepers are parked and the second one is the squatter. Kill job 2 and prove job 1 survived.",
+    task: "Start 'sleep 660' and 'sleep 661' in the background, kill job 2, then list jobs.",
+    hint: "Start both, then kill %2, then jobs",
+    xp: 20,
+    verify: [
+      { type: "historyMatches", regex: "kill\\s+%2" },
+      { type: "outputContains", text: "sleep 660" },
+    ],
+  },
+  {
+    id: "proc-67",
+    zone: 5,
+    title: "The Nice One Hides",
+    briefing:
+      "A squatter wrapped itself in nice to dodge killall, which only matches plain names. Match the full command line instead.",
+    task: "Start 'sleep 670' with niceness 10 in the background, then kill it with pkill -f.",
+    hint: "nice -n 10 sleep 670 & then: pkill -f 'sleep 670'",
+    xp: 20,
+    verify: [
+      { type: "historyMatches", regex: "nice\\s+-n\\s+10\\s+sleep\\s+670" },
+      { type: "historyMatches", regex: "pkill\\s+-f\\s+['\"]?sleep\\s+670" },
+    ],
+  },
+  {
+    id: "proc-68",
+    zone: 5,
+    title: "Wrapped in Nohup",
+    briefing:
+      "Another squatter hides behind nohup, so its process name is nohup, not sleep. The full command line still gives it away.",
+    task: "Start 'sleep 675' with nohup in the background, then kill it with pkill -f.",
+    hint: "nohup sleep 675 & then: pkill -f 'nohup sleep 675'",
+    xp: 20,
+    verify: [
+      { type: "historyMatches", regex: "nohup\\s+sleep\\s+675" },
+      { type: "historyMatches", regex: "pkill\\s+-f" },
+    ],
+  },
+  {
+    id: "proc-69",
+    zone: 5,
+    title: "Polite but Firm",
+    briefing:
+      "Send TERM by name this time, the polite signal with an explicit flag, then confirm the sleeper left.",
+    task: "Start 'sleep 680' in the background, send SIGTERM with pkill -TERM -f, then confirm it is gone.",
+    hint: "sleep 680 & then pkill -TERM -f 'sleep 680' then pgrep -f 'sleep 680' || echo gone",
+    xp: 20,
+    verify: [
+      { type: "historyMatches", regex: "pkill\\s+-TERM\\s+-f" },
+      { type: "outputContains", text: "gone" },
+    ],
+  },
+  {
+    id: "proc-70",
+    zone: 5,
+    title: "Nine Is Final",
+    briefing:
+      "Politeness failed. Send KILL by name and confirm the sleeper is gone.",
+    task: "Start 'sleep 685' in the background, send SIGKILL with pkill -9 -f, then confirm it is gone.",
+    hint: "sleep 685 & then pkill -9 -f 'sleep 685' then pgrep -f 'sleep 685' || echo gone",
+    xp: 20,
+    verify: [
+      { type: "historyMatches", regex: "pkill\\s+-9\\s+-f" },
+      { type: "outputContains", text: "gone" },
+    ],
+  },
+  {
+    id: "proc-71",
+    zone: 5,
+    title: "Head Count",
+    briefing:
+      "Three sleepers parked. The chief wants a number, not a list. Count the job lines.",
+    task: "Start 'sleep 690', 'sleep 691' and 'sleep 692' in the background, then count your jobs.",
+    hint: "Start all three, then: jobs | wc -l",
+    xp: 20,
+    verify: [
+      { type: "historyMatches", regex: "jobs\\s*\\|\\s*wc\\s+-l" },
+      { type: "outputContains", text: "3" },
+    ],
+  },
+  {
+    id: "proc-72",
+    zone: 5,
+    title: "Beacon Gets a Warning",
+    briefing:
+      "The port 4444 beacon is back. Station rules say warn before you escalate, so send it TERM first.",
+    task: "Send SIGTERM to the beacon by name, then confirm it is gone.",
+    hint: "pkill -TERM beacon then: pgrep beacon || echo beacon-gone",
+    xp: 20,
+    verify: [
+      { type: "historyMatches", regex: "pkill\\s+-TERM\\s+beacon" },
+      { type: "outputContains", text: "beacon-gone" },
+    ],
+  },
+  {
+    id: "proc-73",
+    zone: 5,
+    title: "Beacon Gets the Hammer",
+    briefing:
+      "The beacon ignored your warning last shift. Skip straight to signal 9 this time.",
+    task: "Send SIGKILL to the beacon by name, then confirm it is gone.",
+    hint: "pkill -9 beacon then: pgrep beacon || echo beacon-down",
+    xp: 20,
+    verify: [
+      { type: "historyMatches", regex: "pkill\\s+-9\\s+beacon" },
+      { type: "outputContains", text: "beacon-down" },
+    ],
+  },
+  {
+    id: "proc-74",
+    zone: 5,
+    title: "Minutes, Not Seconds",
+    briefing:
+      "Long stakeouts use minute suffixes. Park a two-minute sleeper and evict it by its full command.",
+    task: "Start 'sleep 2m' in the background, find it, then kill it with pkill -f.",
+    hint: "sleep 2m & then pgrep -f 'sleep 2m' then pkill -f 'sleep 2m'",
+    xp: 20,
+    verify: [
+      { type: "historyMatches", regex: "sleep\\s+2m\\s*&" },
+      { type: "historyMatches", regex: "pgrep\\s+-f" },
+      { type: "historyMatches", regex: "pkill\\s+-f\\s+['\"]?sleep\\s+2m" },
+    ],
+  },
+  {
+    id: "proc-75",
+    zone: 5,
+    title: "Hour Long Squatter",
+    briefing:
+      "Someone parked an hour-long sleeper and walked away. List your jobs with PIDs, then evict it.",
+    task: "Start 'sleep 1h' in the background, list jobs with PIDs, then kill it with pkill -f.",
+    hint: "sleep 1h & then jobs -l then pkill -f 'sleep 1h'",
+    xp: 20,
+    verify: [
+      { type: "historyMatches", regex: "sleep\\s+1h\\s*&" },
+      { type: "historyMatches", regex: "jobs\\s+-l" },
+      { type: "historyMatches", regex: "pkill\\s+-f\\s+['\"]?sleep\\s+1h" },
+    ],
+  },
+  {
+    id: "proc-76",
+    zone: 5,
+    title: "The Loop Launch",
+    briefing:
+      "Parking sleepers one by one is slow. Launch three in a loop, check the roster, then sweep them.",
+    task: "Launch sleep 711, 712 and 713 in a for loop, list jobs, then kill them all by pattern.",
+    hint: "for i in 1 2 3; do sleep 71$i &; done then jobs then pkill -f 'sleep 71'",
+    xp: 20,
+    verify: [
+      { type: "historyMatches", regex: "for\\s+i\\s+in\\s+1\\s+2\\s+3" },
+      { type: "historyMatches", regex: "^\\s*jobs\\b" },
+      { type: "historyMatches", regex: "pkill\\s+-f\\s+['\"]?sleep\\s+71" },
+    ],
+  },
+  {
+    id: "proc-77",
+    zone: 5,
+    title: "Read the Roster",
+    briefing:
+      "The durations live in a file, one per line. Read them with a while loop and park a sleeper for each.",
+    task: "Park a background sleeper for each duration in /home/agent/proc/durs.txt using a while-read loop, then list jobs and sweep them.",
+    hint: "while read d; do sleep $d &; done < /home/agent/proc/durs.txt then jobs then pkill -f 'sleep 72'",
+    xp: 20,
+    setup: {
+      dirs: ["/home/agent/proc"],
+      files: { "/home/agent/proc/durs.txt": "720\n721\n" },
+    },
+    verify: [
+      { type: "historyMatches", regex: "while\\s+read\\s+d" },
+      { type: "historyMatches", regex: "^\\s*jobs\\b" },
+      { type: "historyMatches", regex: "pkill\\s+-f\\s+['\"]?sleep\\s+72" },
+    ],
+  },
+  {
+    id: "proc-78",
+    zone: 5,
+    title: "PID Column Only",
+    briefing:
+      "The chief's pager screen is tiny. Give her a listing with nothing but the PID column.",
+    task: "List processes showing only the PID column.",
+    hint: "ps -o pid",
+    xp: 20,
+    verify: [{ type: "historyMatches", regex: "ps\\s+-o\\s+pid\\b" }],
+  },
+  {
+    id: "proc-79",
+    zone: 5,
+    title: "Who Runs What",
+    briefing:
+      "She also wants to know who owns each process. Show the user and command columns only.",
+    task: "List processes showing only the user and command columns.",
+    hint: "ps -o user,comm",
+    xp: 20,
+    verify: [{ type: "historyMatches", regex: "ps\\s+-o\\s+user,comm" }],
+  },
+  {
+    id: "proc-80",
+    zone: 5,
+    title: "Find the Ninth",
+    briefing:
+      "Which number is KILL again? Filter the signal list instead of trusting your memory.",
+    task: "Find the KILL entry in the signal list.",
+    hint: "kill -l | grep KILL",
+    xp: 20,
+    verify: [
+      { type: "historyMatches", regex: "kill\\s+-l" },
+      { type: "outputContains", text: "9) SIGKILL" },
+    ],
+  },
+  {
+    id: "proc-81",
+    zone: 5,
+    title: "Terminate by Name, Twice",
+    briefing:
+      "Two squatters, one pattern. Send TERM to both by name and confirm the room is clear.",
+    task: "Start 'sleep 730' and 'sleep 731' in the background, send TERM to both with pkill -f, then confirm.",
+    hint: "Start both, then pkill -TERM -f 'sleep 73', then pgrep -f 'sleep 73' || echo cleared",
+    xp: 20,
+    verify: [
+      { type: "historyMatches", regex: "pkill\\s+-TERM\\s+-f\\s+['\"]?sleep\\s+73" },
+      { type: "outputContains", text: "cleared" },
+    ],
+  },
+  {
+    id: "proc-82",
+    zone: 5,
+    title: "The Whole Pipeline",
+    briefing:
+      "One pipeline: full table, filter for your sleeper, count the hits. After the kill there should be exactly zero.",
+    task: "Start 'sleep 740' in the background, kill it with pkill -f, then count its lines in the full process table.",
+    hint: "sleep 740 & then pkill -f 'sleep 740' then ps aux | grep 'sleep 740' | wc -l",
+    xp: 20,
+    verify: [
+      { type: "historyMatches", regex: "pkill\\s+-f\\s+['\"]?sleep\\s+740" },
+      { type: "outputContains", text: "0" },
+    ],
+  },
+  {
+    id: "proc-83",
+    zone: 5,
+    title: "Save the Census",
+    briefing:
+      "Log the full process table to a file for the incident report, then count the beacon's lines in it.",
+    task: "Save the full process table to /home/agent/proc/census.txt, then count beacon lines in the file.",
+    hint: "ps aux > /home/agent/proc/census.txt then: grep -c beacon /home/agent/proc/census.txt",
+    xp: 20,
+    setup: { dirs: ["/home/agent/proc"] },
+    verify: [
+      { type: "fileExists", path: "/home/agent/proc/census.txt" },
+      {
+        type: "historyMatches",
+        regex: "grep\\s+-c\\s+beacon",
+      },
+    ],
+  },
+  {
+    id: "proc-84",
+    zone: 5,
+    title: "Nice Guy Eviction",
+    briefing:
+      "A high-niceness squatter is hogging the task table. Spot it in the top snapshot, then evict it.",
+    task: "Start 'sleep 750' with niceness 15 in the background, find it in a top snapshot, then kill it.",
+    hint: "nice -n 15 sleep 750 & then top -b -n 1 | grep 'sleep 750' then pkill -f 'sleep 750'",
+    xp: 20,
+    verify: [
+      { type: "historyMatches", regex: "nice\\s+-n\\s+15\\s+sleep\\s+750" },
+      { type: "historyMatches", regex: "pkill\\s+-f\\s+['\"]?sleep\\s+750" },
+    ],
+  },
+  {
+    id: "proc-85",
+    zone: 5,
+    title: "Nohup Plus Nice",
+    briefing:
+      "Belt and suspenders: a squatter wrapped in both nohup and nice. Park one yourself and confirm it shows in the long job list.",
+    task: "Start 'sleep 755' with nohup and niceness 5 in the background, then list jobs with PIDs.",
+    hint: "nohup nice -n 5 sleep 755 & then: jobs -l",
+    xp: 20,
+    verify: [
+      {
+        type: "historyMatches",
+        regex: "nohup\\s+nice\\s+-n\\s+5\\s+sleep\\s+755",
+      },
+      { type: "historyMatches", regex: "jobs\\s+-l" },
+    ],
+  },
+  {
+    id: "proc-86",
+    zone: 5,
+    title: "Bookend Eviction",
+    briefing:
+      "Three sleepers parked. Evict the first and the third by slot, and prove the middle one is still running.",
+    task: "Start 'sleep 760', 'sleep 761' and 'sleep 762' in the background, kill jobs 1 and 3, then list jobs.",
+    hint: "Start all three, then kill %1, then kill %3, then jobs",
+    xp: 20,
+    verify: [
+      { type: "historyMatches", regex: "kill\\s+%1" },
+      { type: "historyMatches", regex: "kill\\s+%3" },
+      { type: "outputContains", text: "sleep 761" },
+    ],
+  },
+  {
+    id: "proc-87",
+    zone: 5,
+    title: "First the Warning",
+    briefing:
+      "Protocol again: warn with TERM, then confirm the sleeper took the hint.",
+    task: "Start 'sleep 770' in the background, send TERM to job 1 with kill -s, then confirm it is gone.",
+    hint: "sleep 770 & then kill -s TERM %1 then pgrep -f 'sleep 770' || echo warned",
+    xp: 20,
+    verify: [
+      { type: "historyMatches", regex: "kill\\s+-s\\s+TERM\\s+%1" },
+      { type: "outputContains", text: "warned" },
+    ],
+  },
+  {
+    id: "proc-88",
+    zone: 5,
+    title: "Then the Hammer",
+    briefing:
+      "Warnings are for the polite. Send KILL to job 1 and confirm the sleeper is gone.",
+    task: "Start 'sleep 775' in the background, send KILL to job 1 with kill -s, then confirm it is gone.",
+    hint: "sleep 775 & then kill -s KILL %1 then pgrep -f 'sleep 775' || echo hammered",
+    xp: 20,
+    verify: [
+      { type: "historyMatches", regex: "kill\\s+-s\\s+KILL\\s+%1" },
+      { type: "outputContains", text: "hammered" },
+    ],
+  },
+  {
+    id: "proc-89",
+    zone: 5,
+    title: "Pattern Sweep",
+    briefing:
+      "Two sleepers with cousin durations. One regex pattern sweeps both, and the confirmation proves it.",
+    task: "Start 'sleep 780' and 'sleep 781' in the background, kill both with one regex pattern, then confirm.",
+    hint: "Start both, then pkill -f 'sleep 78[01]', then pgrep -f 'sleep 78' || echo swept",
+    xp: 20,
+    verify: [
+      { type: "historyMatches", regex: "pkill\\s+-f\\s+['\"]?sleep\\s+78\\[01\\]" },
+      { type: "outputContains", text: "swept" },
+    ],
+  },
+  {
+    id: "proc-90",
+    zone: 5,
+    title: "Leave sshd Alone",
+    briefing:
+      "Your sweep must not touch the station's sshd. Kill your sleeper, then prove sshd is still standing.",
+    task: "Start 'sleep 790' in the background, kill it with pkill -f, then confirm sshd still runs.",
+    hint: "sleep 790 & then pkill -f 'sleep 790' then pgrep sshd",
+    xp: 20,
+    verify: [
+      { type: "historyMatches", regex: "pkill\\s+-f\\s+['\"]?sleep\\s+790" },
+      { type: "outputContains", text: "88" },
+    ],
+  },
+  {
+    id: "proc-91",
+    zone: 5,
+    title: "The Daemon Must Stay",
+    briefing:
+      "Same rule for the axiom daemon. Sweep your sleeper, then prove the daemon survived.",
+    task: "Start 'sleep 796' in the background, kill it with pkill -f, then confirm axiom-daemon still runs.",
+    hint: "sleep 796 & then pkill -f 'sleep 796' then pgrep -f axiom-daemon",
+    xp: 20,
+    verify: [
+      { type: "historyMatches", regex: "pkill\\s+-f\\s+['\"]?sleep\\s+796" },
+      { type: "outputContains", text: "207" },
+    ],
+  },
+  {
+    id: "proc-92",
+    zone: 5,
+    title: "Sleep Suffix Sprint",
+    briefing:
+      "Second suffixes work too. Park a 45-second sleeper and evict it by its full command.",
+    task: "Start 'sleep 45s' in the background, then kill it with pkill -f.",
+    hint: "sleep 45s & then: pkill -f 'sleep 45s'",
+    xp: 20,
+    verify: [
+      { type: "historyMatches", regex: "sleep\\s+45s\\s*&" },
+      { type: "historyMatches", regex: "pkill\\s+-f\\s+['\"]?sleep\\s+45s" },
+    ],
+  },
+  {
+    id: "proc-93",
+    zone: 5,
+    title: "Background Chain",
+    briefing:
+      "Two more sleepers for the pile. Park them, list with PIDs, and sweep by pattern.",
+    task: "Start 'sleep 800' and 'sleep 801' in the background, list jobs with PIDs, then kill both with pkill -f.",
+    hint: "Start both, then jobs -l, then pkill -f 'sleep 80'",
+    xp: 20,
+    verify: [
+      { type: "historyMatches", regex: "jobs\\s+-l" },
+      { type: "historyMatches", regex: "pkill\\s+-f\\s+['\"]?sleep\\s+80" },
+    ],
+  },
+  {
+    id: "proc-94",
+    zone: 5,
+    title: "Quiet Confirmation",
+    briefing:
+      "No need for the full table. Filter the job list itself for your sleeper.",
+    task: "Start 'sleep 805' in the background, then find it by filtering the jobs listing.",
+    hint: "sleep 805 & then: jobs | grep 805",
+    xp: 20,
+    verify: [
+      { type: "historyMatches", regex: "jobs\\s*\\|\\s*grep" },
+      { type: "outputContains", text: "sleep 805" },
+    ],
+  },
+  {
+    id: "proc-95",
+    zone: 5,
+    title: "The Newest Goes First",
+    briefing:
+      "Two sleepers parked, and the newest one is the squatter. Pull it to the foreground with fg, which removes it from the job list.",
+    task: "Start 'sleep 810' and 'sleep 811' in the background, bring the newest to the foreground with fg, then list jobs.",
+    hint: "Start both, then fg, then jobs",
+    xp: 20,
+    verify: [
+      { type: "historyMatches", regex: "^\\s*fg\\s*$" },
+      { type: "outputContains", text: "sleep 810" },
+    ],
+  },
+  {
+    id: "proc-96",
+    zone: 5,
+    title: "Repark With bg",
+    briefing:
+      "The chief wants every job explicitly backgrounded with bg, even fresh ones. Start one, bg it by slot, and check the roster.",
+    task: "Start 'sleep 815' in the background, run bg on job 1, then list jobs.",
+    hint: "sleep 815 & then bg %1 then jobs",
+    xp: 20,
+    verify: [
+      { type: "historyMatches", regex: "bg\\s+%1" },
+      { type: "outputContains", text: "sleep 815" },
+    ],
+  },
+  {
+    id: "proc-97",
+    zone: 5,
+    title: "The Full Eviction",
+    briefing:
+      "Final drill for this shift: two sleepers and the beacon, all gone, with one confirmation at the end.",
+    task: "Start 'sleep 820' and 'sleep 821' in the background, kill the sleepers by pattern and the beacon by name, then confirm all are gone.",
+    hint: "Start both, then pkill -f 'sleep 82', then pkill beacon, then pgrep -f 'sleep 82|beacon' || echo station-clear",
+    xp: 20,
+    verify: [
+      { type: "historyMatches", regex: "pkill\\s+-f\\s+['\"]?sleep\\s+82" },
+      { type: "historyMatches", regex: "pkill\\s+beacon" },
+      { type: "outputContains", text: "station-clear" },
+    ],
+  },
+  {
+    id: "proc-98",
+    zone: 5,
+    title: "Watch the Load",
+    briefing:
+      "One sleeper adds exactly one sleep line to the top snapshot. Kill it and prove no sleep line remains.",
+    task: "Start 'sleep 825' in the background, kill it, then prove no sleep line remains in the top snapshot.",
+    hint: "sleep 825 & then pkill -f 'sleep 825' then top -b -n 1 | grep -c 'sleep 825'",
+    xp: 20,
+    verify: [
+      { type: "historyMatches", regex: "pkill\\s+-f\\s+['\"]?sleep\\s+825" },
+      { type: "outputContains", text: "0" },
+    ],
+  },
+  {
+    id: "proc-99",
+    zone: 5,
+    title: "The 30-Second Drill",
+    briefing:
+      "Speed drill. Three sleepers, one roster check with PIDs, then three slot kills. No pattern matching, just job numbers.",
+    task: "Start 'sleep 830', 'sleep 831' and 'sleep 832' in the background, list jobs with PIDs, then kill jobs 1, 2 and 3.",
+    hint: "Start all three, then jobs -l, then kill %1, kill %2, kill %3",
+    xp: 20,
+    verify: [
+      { type: "historyMatches", regex: "sleep\\s+83[012]\\s*&" },
+      { type: "historyMatches", regex: "jobs\\s+-l" },
+      { type: "historyMatches", regex: "kill\\s+%1" },
+      { type: "historyMatches", regex: "kill\\s+%2" },
+      { type: "historyMatches", regex: "kill\\s+%3" },
+    ],
+  },
+  {
+    id: "proc-100",
+    zone: 5,
+    title: "Five Alarm Fire",
+    briefing:
+      "Five squatters just landed on the CPU. Launch five sleepers in a loop, check the roster, sweep them by pattern, and confirm the fire is out.",
+    task: "Launch sleep 911, 922, 933, 944 and 955 in a for loop, list jobs, kill them by pattern, then confirm none remain.",
+    hint: "for i in 1 2 3 4 5; do sleep 9$i$i &; done then jobs then pkill -f 'sleep 9' then pgrep -f 'sleep 9' || echo clear",
+    xp: 30,
+    verify: [
+      { type: "historyMatches", regex: "for\\s+i\\s+in" },
+      { type: "outputContains", text: "clear" },
+    ],
+  },
+  {
+    id: "proc-101",
+    zone: 5,
+    title: "Nice Try, Squatter",
+    briefing:
+      "A squatter set its niceness to 19, the maximum, hoping you would overlook it. List it with its PID, evict it by full command, and confirm.",
+    task: "Start 'sleep 905' with niceness 19 in the background, list jobs with PIDs, kill it with pkill -f, then confirm it is gone.",
+    hint: "nice -n 19 sleep 905 & then jobs -l then pkill -f 'sleep 905' then pgrep -f 'sleep 905' || echo nice-gone",
+    xp: 30,
+    verify: [
+      { type: "historyMatches", regex: "nice\\s+-n\\s+19" },
+      { type: "outputContains", text: "nice-gone" },
+    ],
+  },
+  {
+    id: "proc-102",
+    zone: 5,
+    title: "The Double Wrap",
+    briefing:
+      "This squatter wears two disguises: nohup outside, nice inside. Its process name is nohup, so only the full command line finds it.",
+    task: "Start 'sleep 910' wrapped in nohup and nice -n 8 in the background, spot it in the full table, then kill it with pkill -f.",
+    hint: "nohup nice -n 8 sleep 910 & then ps -ef | grep 'sleep 910' then pkill -f 'sleep 910'",
+    xp: 30,
+    verify: [
+      {
+        type: "historyMatches",
+        regex: "nohup\\s+nice\\s+-n\\s+8\\s+sleep\\s+910",
+      },
+      { type: "historyMatches", regex: "pkill\\s+-f\\s+['\"]?sleep\\s+910" },
+    ],
+  },
+  {
+    id: "proc-103",
+    zone: 5,
+    title: "Signal Cascade",
+    briefing:
+      "Two sleepers, two signals. TERM the first by slot, KILL the second by slot, then confirm both are gone.",
+    task: "Start 'sleep 915' and 'sleep 916' in the background, send TERM to job 1 and KILL to job 2, then confirm.",
+    hint: "Start both, then kill -TERM %1, then kill -KILL %2, then pgrep -f 'sleep 91' || echo cascade-done",
+    xp: 30,
+    verify: [
+      { type: "historyMatches", regex: "kill\\s+-TERM\\s+%1" },
+      { type: "historyMatches", regex: "kill\\s+-KILL\\s+%2" },
+      { type: "outputContains", text: "cascade-done" },
+    ],
+  },
+  {
+    id: "proc-104",
+    zone: 5,
+    title: "The Beacon Siege",
+    briefing:
+      "The beacon is back with two sleeper friends, all squatting together. Break the siege: pattern-kill the sleepers, 9 the beacon, confirm everything is gone.",
+    task: "Start 'sleep 920' and 'sleep 921' in the background, kill the sleepers by pattern and the beacon with signal 9, then confirm.",
+    hint: "Start both, then pkill -f 'sleep 92', then pkill -9 beacon, then pgrep -f 'sleep 92|beacon' || echo siege-lifted",
+    xp: 30,
+    verify: [
+      { type: "historyMatches", regex: "pkill\\s+-f\\s+['\"]?sleep\\s+92" },
+      { type: "historyMatches", regex: "pkill\\s+-9\\s+beacon" },
+      { type: "outputContains", text: "siege-lifted" },
+    ],
+  },
+  {
+    id: "proc-105",
+    zone: 5,
+    title: "Slot Shuffle",
+    briefing:
+      "Four sleepers parked. Evict jobs 2 and 4 by slot, and prove jobs 1 and 3 survived the shuffle.",
+    task: "Start 'sleep 930' through 'sleep 933' in the background, kill jobs 2 and 4, then list jobs.",
+    hint: "Start all four, then kill %2, then kill %4, then jobs",
+    xp: 30,
+    verify: [
+      { type: "historyMatches", regex: "kill\\s+%2" },
+      { type: "historyMatches", regex: "kill\\s+%4" },
+      { type: "outputContains", text: "sleep 930" },
+      { type: "outputContains", text: "sleep 932" },
+    ],
+  },
+  {
+    id: "proc-106",
+    zone: 5,
+    title: "Grep the Battlefield",
+    briefing:
+      "After the sweep, the incident report needs the sleeper's table line on file. Save the filtered full table to a file.",
+    task: "Start 'sleep 935' in the background, then save its line from the full process table to /home/agent/proc/hit.txt.",
+    hint: "sleep 935 & then: ps aux | grep 'sleep 935' > /home/agent/proc/hit.txt",
+    xp: 30,
+    setup: { dirs: ["/home/agent/proc"] },
+    verify: [
+      { type: "fileExists", path: "/home/agent/proc/hit.txt" },
+      { type: "fileContains", path: "/home/agent/proc/hit.txt", text: "sleep 935" },
+    ],
+  },
+  {
+    id: "proc-107",
+    zone: 5,
+    title: "Top of the Heap",
+    briefing:
+      "A squatter gave itself negative niceness, -5, to hog the CPU. Spot it in the top snapshot, evict it, and confirm.",
+    task: "Start 'sleep 940' with niceness -5 in the background, find it in a top snapshot, kill it, then confirm it is gone.",
+    hint: "nice -n -5 sleep 940 & then top -b -n 1 | grep 'sleep 940' then pkill -f 'sleep 940' then pgrep -f 'sleep 940' || echo heap-clear",
+    xp: 30,
+    verify: [
+      { type: "historyMatches", regex: "nice\\s+-n\\s+-5\\s+sleep\\s+940" },
+      { type: "outputContains", text: "heap-clear" },
+    ],
+  },
+  {
+    id: "proc-108",
+    zone: 5,
+    title: "Exact Name Eviction",
+    briefing:
+      "killall can match the exact full command string, not just the short name. Evict a nohup-wrapped sleeper with its exact command line.",
+    task: "Start 'sleep 945' with nohup in the background, then kill it with killall using its exact command string.",
+    hint: "nohup sleep 945 & then: killall 'nohup sleep 945' then pgrep -f 'sleep 945' || echo exact-gone",
+    xp: 30,
+    verify: [
+      { type: "historyMatches", regex: "killall\\s+['\"]nohup\\s+sleep\\s+945['\"]" },
+      { type: "outputContains", text: "exact-gone" },
+    ],
+  },
+  {
+    id: "proc-109",
+    zone: 5,
+    title: "The Middle Survives",
+    briefing:
+      "Three sleepers, and the middle one is the real scan. List with PIDs, kill job 2 by slot, and prove the other two survived.",
+    task: "Start 'sleep 950', 'sleep 951' and 'sleep 952' in the background, list jobs with PIDs, kill job 2, then list jobs.",
+    hint: "Start all three, then jobs -l, then kill %2, then jobs",
+    xp: 30,
+    verify: [
+      { type: "historyMatches", regex: "jobs\\s+-l" },
+      { type: "historyMatches", regex: "kill\\s+%2" },
+      { type: "outputContains", text: "sleep 950" },
+      { type: "outputContains", text: "sleep 952" },
+    ],
+  },
+  {
+    id: "proc-110",
+    zone: 5,
+    title: "Pattern Snipe",
+    briefing:
+      "Three cousin sleepers, and only the middle one is the squatter. Anchor your regex to the end of the line so the others survive.",
+    task: "Start 'sleep 960', 'sleep 961' and 'sleep 962' in the background, kill only 961 with an anchored pattern, then list jobs.",
+    hint: "Start all three, then pkill -f 'sleep 961$', then jobs",
+    xp: 30,
+    verify: [
+      { type: "historyMatches", regex: "pkill\\s+-f\\s+['\"]?sleep\\s+961\\$" },
+      { type: "outputContains", text: "sleep 960" },
+      { type: "outputContains", text: "sleep 962" },
+    ],
+  },
+  {
+    id: "proc-111",
+    zone: 5,
+    title: "The Relay Is Sacred",
+    briefing:
+      "The relay service on port 8443 is station-critical. Sweep your sleeper, then prove the relay survived.",
+    task: "Start 'sleep 965' in the background, kill it with pkill -f, then confirm relay-svc still runs.",
+    hint: "sleep 965 & then pkill -f 'sleep 965' then pgrep -f relay-svc",
+    xp: 30,
+    verify: [
+      { type: "historyMatches", regex: "pkill\\s+-f\\s+['\"]?sleep\\s+965" },
+      { type: "outputContains", text: "313" },
+    ],
+  },
+  {
+    id: "proc-112",
+    zone: 5,
+    title: "Kill by Full Name",
+    briefing:
+      "killall does exact matching too. Give it the complete command string of your sleeper.",
+    task: "Start 'sleep 970' in the background, then kill it with killall using its full command string.",
+    hint: "sleep 970 & then: killall 'sleep 970' then pgrep -f 'sleep 970' || echo named-gone",
+    xp: 30,
+    verify: [
+      { type: "historyMatches", regex: "killall\\s+['\"]sleep\\s+970['\"]" },
+      { type: "outputContains", text: "named-gone" },
+    ],
+  },
+  {
+    id: "proc-113",
+    zone: 5,
+    title: "History of Violence",
+    briefing:
+      "Every eviction is logged in your shell history. Prove your pkill is on the record.",
+    task: "Start 'sleep 975' in the background, kill it with pkill -f, then find the pkill in your history.",
+    hint: "sleep 975 & then pkill -f 'sleep 975' then history | grep pkill",
+    xp: 30,
+    verify: [
+      { type: "historyMatches", regex: "pkill\\s+-f\\s+['\"]?sleep\\s+975" },
+      { type: "outputContains", text: "pkill" },
+    ],
+  },
+  {
+    id: "proc-114",
+    zone: 5,
+    title: "The Manual Eviction",
+    briefing:
+      "Read the pkill manual first, like a professional, then perform the eviction it describes.",
+    task: "Open the pkill manual, start 'sleep 980' in the background, then kill it with pkill -f.",
+    hint: "man pkill then sleep 980 & then pkill -f 'sleep 980'",
+    xp: 30,
+    verify: [
+      { type: "historyMatches", regex: "^\\s*man\\s+pkill" },
+      { type: "historyMatches", regex: "pkill\\s+-f\\s+['\"]?sleep\\s+980" },
+    ],
+  },
+  {
+    id: "proc-115",
+    zone: 5,
+    title: "Signal Vocabulary",
+    briefing:
+      "The chief quizzes you on signals: which entries mention TERM, KILL, or HUP? Filter the list with an extended regex.",
+    task: "Show the signal list entries for TERM, KILL and HUP using grep -E.",
+    hint: "kill -l | grep -E 'TERM|KILL|HUP'",
+    xp: 30,
+    verify: [
+      { type: "historyMatches", regex: "kill\\s+-l\\s*\\|\\s*grep\\s+-E" },
+      { type: "outputContains", text: "SIGTERM" },
+    ],
+  },
+  {
+    id: "proc-116",
+    zone: 5,
+    title: "The Port 4444 Story",
+    briefing:
+      "The full story in three acts: spot the beacon in the table, warn it with TERM, and declare port 4444 free.",
+    task: "Find the beacon in the full process table, send it SIGTERM, then confirm the port is free.",
+    hint: "ps aux | grep beacon then pkill -TERM beacon then pgrep beacon || echo port-4444-free",
+    xp: 30,
+    verify: [
+      { type: "historyMatches", regex: "ps\\s+aux\\s*\\|\\s*grep\\s+beacon" },
+      { type: "historyMatches", regex: "pkill\\s+-TERM\\s+beacon" },
+      { type: "outputContains", text: "port-4444-free" },
+    ],
+  },
+  {
+    id: "proc-117",
+    zone: 5,
+    title: "Squatter Census",
+    briefing:
+      "Count the squatters before the sweep and after. Before: three. After: zero. The pipeline does the counting.",
+    task: "Start 'sleep 985', 'sleep 986' and 'sleep 987' in the background, count them, kill them by pattern, then count again.",
+    hint: "Start all three, then pgrep -f 'sleep 98' | wc -l, then pkill -f 'sleep 98', then pgrep -f 'sleep 98' | wc -l",
+    xp: 30,
+    verify: [
+      {
+        type: "historyMatches",
+        regex: "pgrep\\s+-f\\s+['\"]?sleep\\s+98['\"]?\\s*\\|\\s*wc",
+      },
+      { type: "historyMatches", regex: "pkill\\s+-f\\s+['\"]?sleep\\s+98" },
+      { type: "outputContains", text: "0" },
+    ],
+  },
+  {
+    id: "proc-118",
+    zone: 5,
+    title: "The Quiet Room",
+    briefing:
+      "Sweep every sleeper by name in one command, then prove the room is quiet.",
+    task: "Start 'sleep 990' and 'sleep 991' in the background, kill all sleep processes by name, then confirm none remain.",
+    hint: "Start both, then killall sleep, then pgrep sleep || echo quiet",
+    xp: 30,
+    verify: [
+      { type: "historyMatches", regex: "killall\\s+sleep" },
+      { type: "outputContains", text: "quiet" },
+    ],
+  },
+  {
+    id: "proc-119",
+    zone: 5,
+    title: "Full Table Audit",
+    briefing:
+      "The auditors want the full process table on file with your sleeper's line verifiable inside it.",
+    task: "Start 'sleep 995' in the background, save the full process table to /home/agent/proc/audit.txt, then pull your sleeper's line from the file.",
+    hint: "sleep 995 & then ps -ef > /home/agent/proc/audit.txt then grep 'sleep 995' /home/agent/proc/audit.txt",
+    xp: 30,
+    setup: { dirs: ["/home/agent/proc"] },
+    verify: [
+      { type: "fileExists", path: "/home/agent/proc/audit.txt" },
+      { type: "outputContains", text: "sleep 995" },
+    ],
+  },
+  {
+    id: "proc-120",
+    zone: 5,
+    title: "The Final Sweep",
+    briefing:
+      "Nearly done. Three sleepers and the beacon, one pattern kill, one signal 9, one confirmation.",
+    task: "Start 'sleep 1000', 'sleep 1001' and 'sleep 1002' in the background, kill the sleepers by pattern and the beacon with signal 9, then confirm all are gone.",
+    hint: "Start all three, then pkill -f 'sleep 100', then pkill -9 -f beacon, then pgrep -f 'sleep 100|beacon' || echo final-clear",
+    xp: 30,
+    verify: [
+      { type: "historyMatches", regex: "pkill\\s+-f\\s+['\"]?sleep\\s+100" },
+      { type: "historyMatches", regex: "pkill\\s+-9\\s+-f\\s+beacon" },
+      { type: "outputContains", text: "final-clear" },
+    ],
+  },
+  {
+    id: "proc-121",
+    zone: 5,
+    title: "Job Control Master",
+    briefing:
+      "Full job control workout: background a job explicitly, foreground it, park a new one, kill it by slot, confirm.",
+    task: "Start 'sleep 1005' in the background, run bg %1, then fg %1, start 'sleep 1006' in the background, kill job 2, then confirm it is gone.",
+    hint: "sleep 1005 & then bg %1 then fg %1 then sleep 1006 & then kill %2 then pgrep -f 'sleep 1006' || echo controlled",
+    xp: 30,
+    verify: [
+      { type: "historyMatches", regex: "bg\\s+%1" },
+      { type: "historyMatches", regex: "^\\s*fg\\s+%1" },
+      { type: "historyMatches", regex: "kill\\s+%2" },
+      { type: "outputContains", text: "controlled" },
+    ],
+  },
+  {
+    id: "proc-122",
+    zone: 5,
+    title: "Niceness Audit",
+    briefing:
+      "The auditors want proof of niceness 12 in the top snapshot. Park it, spot it, evict it, confirm.",
+    task: "Start 'sleep 1010' with niceness 12 in the background, find it in a top snapshot, kill it, then confirm it is gone.",
+    hint: "nice -n 12 sleep 1010 & then top -b -n 1 | grep 'sleep 1010' then pkill -f 'sleep 1010' then pgrep -f 'sleep 1010' || echo audit-done",
+    xp: 30,
+    verify: [
+      { type: "historyMatches", regex: "nice\\s+-n\\s+12\\s+sleep\\s+1010" },
+      { type: "outputContains", text: "audit-done" },
+    ],
+  },
+  {
+    id: "proc-123",
+    zone: 5,
+    title: "The pgrep Regex",
+    briefing:
+      "Two cousin sleepers, one character class. Match both with a single pgrep pattern, then sweep them.",
+    task: "Start 'sleep 1015' and 'sleep 1016' in the background, find both with pgrep -f and a character class, then kill them by pattern.",
+    hint: "Start both, then pgrep -f 'sleep 101[56]', then pkill -f 'sleep 101'",
+    xp: 30,
+    verify: [
+      { type: "historyMatches", regex: "pgrep\\s+-f\\s+['\"]?sleep\\s+101\\[56\\]" },
+      { type: "historyMatches", regex: "pkill\\s+-f\\s+['\"]?sleep\\s+101" },
+    ],
+  },
+  {
+    id: "proc-124",
+    zone: 5,
+    title: "Eviction Notice",
+    briefing:
+      "The final eviction notice. Four sleepers and the beacon get TERM first, then signal 9, then one confirmation that the station is clear.",
+    task: "Start 'sleep 1020' through 'sleep 1023' in the background, send TERM to all squatters, then KILL, then confirm everything is gone.",
+    hint: "Start all four, then pkill -TERM -f 'sleep 102', then pkill -TERM beacon, then pkill -9 -f 'sleep 102', then pkill -9 beacon, then pgrep -f 'sleep 102|beacon' || echo eviction-complete",
+    xp: 30,
+    verify: [
+      { type: "historyMatches", regex: "pkill\\s+-TERM\\s+-f" },
+      { type: "historyMatches", regex: "pkill\\s+-9\\s+-f" },
+      { type: "outputContains", text: "eviction-complete" },
+    ],
+  },
+];
+
+export const SOLUTIONS_PROC_X: Record<string, string[]> = {
+  "proc-20": ["ps"],
+  "proc-21": ["ps aux"],
+  "proc-22": ["ps -ef"],
+  "proc-23": ["sleep 500 &"],
+  "proc-24": ["sleep 60 &", "jobs"],
+  "proc-25": ["sleep 130 &", "jobs -l"],
+  "proc-26": ["top -b -n 1"],
+  "proc-27": ["sleep 505 &", "pgrep sleep"],
+  "proc-28": ["sleep 510 &", "pgrep -f 'sleep 510'"],
+  "proc-29": ["sleep 515 &", "killall sleep"],
+  "proc-30": ["sleep 520 &", "kill %1"],
+  "proc-31": ["sleep 525 &", "pkill sleep"],
+  "proc-32": ["nice -n 10 sleep 530 &"],
+  "proc-33": ["nohup sleep 535 &"],
+  "proc-34": ["ps -o pid,cmd"],
+  "proc-35": ["ps aux | grep beacon"],
+  "proc-36": ["man pgrep"],
+  "proc-37": ["which pkill"],
+  "proc-38": ["type kill"],
+  "proc-39": ["kill -l"],
+  "proc-40": ["sleep 540 &", "sleep 541 &", "jobs"],
+  "proc-41": ["sleep 545 &", "bg"],
+  "proc-42": ["sleep 550 &", "fg"],
+  "proc-43": ["sleep 555 &", "kill -TERM %1"],
+  "proc-44": ["sleep 560 &", "kill -9 %1"],
+  "proc-45": ["sleep 565 &", "kill -SIGTERM %1"],
+  "proc-46": ["sleep 570 &", "kill -15 %1"],
+  "proc-47": ["sleep 575 &", "kill -s TERM %1"],
+  "proc-48": ["sleep 580 &", "sleep 581 &", "pkill -f 'sleep 580'"],
+  "proc-49": ["sleep 585 &", "sleep 586 &", "killall sleep"],
+  "proc-50": ["nice -n 5 sleep 590 &"],
+  "proc-51": ["nice -5 sleep 595 &"],
+  "proc-52": ["nohup sleep 600 &"],
+  "proc-53": ["pkill -f 'sleep 60'; sleep 605 &", "sleep 606 &", "pgrep -f 'sleep 60' | wc -l"],
+  "proc-54": ["sleep 610 &", "ps -ef | grep 'sleep 610'"],
+  "proc-55": ["sleep 615 &", "top -b -n 1 | grep 'sleep 615'"],
+  "proc-56": ["sleep 620 &", "sleep 621 &", "kill %1", "kill %2"],
+  "proc-57": ["sleep 625 &", "jobs > /home/agent/proc/jobs.txt"],
+  "proc-58": ["sleep 630 &", "pgrep -f 'sleep 630' > /home/agent/proc/pids.txt"],
+  "proc-59": ["sleep 635 &", "ps -ef > /home/agent/proc/table.txt", "grep 'sleep 635' /home/agent/proc/table.txt"],
+  "proc-60": ["pgrep -f beacon"],
+  "proc-61": ["pkill beacon"],
+  "proc-62": ["pkill -f beacon", "pgrep beacon || echo beacon-gone"],
+  "proc-63": ["sleep 640 &", "sleep 641 &", "pkill -f 'sleep 640'", "jobs"],
+  "proc-64": ["sleep 645 &", "sleep 646 &", "pkill -f 'sleep 64'", "pgrep -f 'sleep 64' || echo all-clear"],
+  "proc-65": ["sleep 650 &", "sleep 651 &", "sleep 652 &", "jobs -l", "pkill -f 'sleep 65'"],
+  "proc-66": ["sleep 660 &", "sleep 661 &", "kill %2", "jobs"],
+  "proc-67": ["nice -n 10 sleep 670 &", "pkill -f 'sleep 670'"],
+  "proc-68": ["nohup sleep 675 &", "pkill -f 'nohup sleep 675'"],
+  "proc-69": ["sleep 680 &", "pkill -TERM -f 'sleep 680'", "pgrep -f 'sleep 680' || echo gone"],
+  "proc-70": ["sleep 685 &", "pkill -9 -f 'sleep 685'", "pgrep -f 'sleep 685' || echo gone"],
+  "proc-71": ["pkill sleep; sleep 690 &", "sleep 691 &", "sleep 692 &", "jobs | wc -l"],
+  "proc-72": ["pkill -TERM beacon", "pgrep beacon || echo beacon-gone"],
+  "proc-73": ["pkill -9 beacon", "pgrep beacon || echo beacon-down"],
+  "proc-74": ["sleep 2m &", "pgrep -f 'sleep 2m'", "pkill -f 'sleep 2m'"],
+  "proc-75": ["sleep 1h &", "jobs -l", "pkill -f 'sleep 1h'"],
+  "proc-76": ["for i in 1 2 3; do sleep 71$i &; done", "jobs", "pkill -f 'sleep 71'"],
+  "proc-77": ["while read d; do sleep $d &; done < /home/agent/proc/durs.txt", "jobs", "pkill -f 'sleep 72'"],
+  "proc-78": ["ps -o pid"],
+  "proc-79": ["ps -o user,comm"],
+  "proc-80": ["kill -l | grep KILL"],
+  "proc-81": ["sleep 730 &", "sleep 731 &", "pkill -TERM -f 'sleep 73'", "pgrep -f 'sleep 73' || echo cleared"],
+  "proc-82": ["sleep 740 &", "pkill -f 'sleep 740'", "ps aux | grep 'sleep 740' | wc -l"],
+  "proc-83": ["ps aux > /home/agent/proc/census.txt", "grep -c beacon /home/agent/proc/census.txt"],
+  "proc-84": ["nice -n 15 sleep 750 &", "top -b -n 1 | grep 'sleep 750'", "pkill -f 'sleep 750'"],
+  "proc-85": ["nohup nice -n 5 sleep 755 &", "jobs -l", "pkill -f 'sleep 755'"],
+  "proc-86": ["sleep 760 &", "sleep 761 &", "sleep 762 &", "kill %1", "kill %3", "jobs"],
+  "proc-87": ["sleep 770 &", "kill -s TERM %1", "pgrep -f 'sleep 770' || echo warned"],
+  "proc-88": ["sleep 775 &", "kill -s KILL %1", "pgrep -f 'sleep 775' || echo hammered"],
+  "proc-89": ["sleep 780 &", "sleep 781 &", "pkill -f 'sleep 78[01]'", "pgrep -f 'sleep 78' || echo swept"],
+  "proc-90": ["sleep 790 &", "pkill -f 'sleep 790'", "pgrep sshd"],
+  "proc-91": ["sleep 796 &", "pkill -f 'sleep 796'", "pgrep -f axiom-daemon"],
+  "proc-92": ["sleep 45s &", "pkill -f 'sleep 45s'"],
+  "proc-93": ["sleep 800 &", "sleep 801 &", "jobs -l", "pkill -f 'sleep 80'"],
+  "proc-94": ["sleep 805 &", "jobs | grep 805"],
+  "proc-95": ["sleep 810 &", "sleep 811 &", "fg", "jobs"],
+  "proc-96": ["sleep 815 &", "bg %1", "jobs"],
+  "proc-97": ["sleep 820 &", "sleep 821 &", "pkill -f 'sleep 82'", "pkill beacon", "pgrep -f 'sleep 82|beacon' || echo station-clear"],
+  "proc-98": ["sleep 825 &", "pkill -f 'sleep 825'", "top -b -n 1 | grep -c 'sleep 825'"],
+  "proc-99": ["sleep 830 &", "sleep 831 &", "sleep 832 &", "jobs -l", "kill %1", "kill %2", "kill %3"],
+  "proc-100": ["for i in 1 2 3 4 5; do sleep 9$i$i &; done", "jobs", "pkill -f 'sleep 9'", "pgrep -f 'sleep 9' || echo clear"],
+  "proc-101": ["nice -n 19 sleep 905 &", "jobs -l", "pkill -f 'sleep 905'", "pgrep -f 'sleep 905' || echo nice-gone"],
+  "proc-102": ["nohup nice -n 8 sleep 910 &", "ps -ef | grep 'sleep 910'", "pkill -f 'sleep 910'"],
+  "proc-103": ["sleep 915 &", "kill -TERM %1", "sleep 916 &", "kill -KILL %2", "pgrep -f 'sleep 91' || echo cascade-done"],
+  "proc-104": ["sleep 920 &", "sleep 921 &", "pkill -f 'sleep 92'", "pkill -9 beacon", "pgrep -f 'sleep 92|beacon' || echo siege-lifted"],
+  "proc-105": ["sleep 930 &", "sleep 931 &", "sleep 932 &", "sleep 933 &", "kill %2", "kill %4", "jobs"],
+  "proc-106": ["sleep 935 &", "ps aux | grep 'sleep 935' > /home/agent/proc/hit.txt", "pkill -f 'sleep 935'"],
+  "proc-107": ["nice -n -5 sleep 940 &", "top -b -n 1 | grep 'sleep 940'", "pkill -f 'sleep 940'", "pgrep -f 'sleep 940' || echo heap-clear"],
+  "proc-108": ["nohup sleep 945 &", "killall 'nohup sleep 945'", "pgrep -f 'sleep 945' || echo exact-gone"],
+  "proc-109": ["sleep 950 &", "sleep 951 &", "sleep 952 &", "jobs -l", "kill %2", "jobs"],
+  "proc-110": ["sleep 960 &", "sleep 961 &", "sleep 962 &", "pkill -f 'sleep 961$'", "jobs"],
+  "proc-111": ["sleep 965 &", "pkill -f 'sleep 965'", "pgrep -f relay-svc"],
+  "proc-112": ["sleep 970 &", "killall 'sleep 970'", "pgrep -f 'sleep 970' || echo named-gone"],
+  "proc-113": ["sleep 975 &", "pkill -f 'sleep 975'", "history | grep pkill"],
+  "proc-114": ["man pkill", "sleep 980 &", "pkill -f 'sleep 980'"],
+  "proc-115": ["kill -l | grep -E 'TERM|KILL|HUP'"],
+  "proc-116": ["ps aux | grep beacon", "pkill -TERM beacon", "pgrep beacon || echo port-4444-free"],
+  "proc-117": ["sleep 985 &", "sleep 986 &", "sleep 987 &", "pgrep -f 'sleep 98' | wc -l", "pkill -f 'sleep 98'", "pgrep -f 'sleep 98' | wc -l"],
+  "proc-118": ["sleep 990 &", "sleep 991 &", "killall sleep", "pgrep sleep || echo quiet"],
+  "proc-119": ["sleep 995 &", "ps -ef > /home/agent/proc/audit.txt", "grep 'sleep 995' /home/agent/proc/audit.txt"],
+  "proc-120": ["sleep 1000 &", "sleep 1001 &", "sleep 1002 &", "pkill -f 'sleep 100'", "pkill -9 -f beacon", "pgrep -f 'sleep 100|beacon' || echo final-clear"],
+  "proc-121": ["sleep 1005 &", "bg %1", "fg %1", "sleep 1006 &", "kill %2", "pgrep -f 'sleep 1006' || echo controlled"],
+  "proc-122": ["nice -n 12 sleep 1010 &", "top -b -n 1 | grep 'sleep 1010'", "pkill -f 'sleep 1010'", "pgrep -f 'sleep 1010' || echo audit-done"],
+  "proc-123": ["sleep 1015 &", "sleep 1016 &", "pgrep -f 'sleep 101[56]'", "pkill -f 'sleep 101'"],
+  "proc-124": ["sleep 1020 &", "sleep 1021 &", "sleep 1022 &", "sleep 1023 &", "pkill -TERM -f 'sleep 102'", "pkill -TERM beacon", "pkill -9 -f 'sleep 102'", "pkill -9 beacon", "pgrep -f 'sleep 102|beacon' || echo eviction-complete"],
+};

@@ -185,5 +185,111 @@ export function checkAchievements(state: AchievementState): string[] {
   if (xp >= 2000) grant("living-legend");
   if (xp >= 2800) grant("mythic");
 
+  // ---- v4: 1000-challenge expansion ----
+  const milestones: Array<[number, string]> = [
+    [150, "steamroller"],
+    [200, "double-century"],
+    [250, "quarter-grand"],
+    [300, "triple-century"],
+    [400, "four-hundred"],
+    [500, "half-grand"],
+    [600, "six-hundred"],
+    [700, "seven-hundred"],
+    [800, "eight-hundred"],
+    [900, "nine-hundred"],
+    [1000, "millennium"],
+  ];
+  for (const [n, id] of milestones) {
+    if (completedCount >= n) grant(id);
+  }
+
+  if (streakBest >= 30) grant("runaway");
+  if (streakBest >= 40) grant("freight-train");
+  if (streakBest >= 50) grant("half-century-streak");
+  if (streakBest >= 75) grant("unbreakable");
+  if (streakBest >= 100) grant("century-streak");
+
+  if (masteredCount >= 35) grant("deep-memory");
+  if (masteredCount >= 50) grant("total-recall");
+  if (masteredCount >= 60) grant("command-library");
+
+  const hintsCount = Object.keys(state.hintsUsed).length;
+  if (hintsCount >= 50) grant("thorough");
+  if (hintsCount >= 100) grant("hint-connoisseur");
+  if (hintsCount >= 200) grant("axiom-hotline");
+
+  if (quizAces >= 8) grant("grandmaster");
+
+  const zoneCompletedCount = (zone: number): number =>
+    zoneChallengeIds(zone).filter((id) => state.completed[id]).length;
+  const zoneFifty: Record<number, string> = {
+    1: "hall-monitor",
+    2: "speed-reader",
+    3: "pattern-spotter",
+    4: "locksmith",
+    5: "wrangler",
+    6: "packet-pusher",
+    7: "sysadmin",
+    8: "pipe-layer",
+  };
+  const zoneHundred: Record<number, string> = {
+    1: "dark-native",
+    2: "head-librarian",
+    3: "log-whisperer",
+    4: "vault-keeper",
+    5: "init-royalty",
+    6: "bandwidth-baron",
+    7: "all-knowing",
+    8: "shell-deity",
+  };
+  const zoneFirst: Record<number, string> = {
+    2: "second-wind",
+    3: "third-act",
+    4: "fourth-wall",
+    5: "fifth-gear",
+    6: "sixth-sense",
+    7: "seventh-heaven",
+    8: "eighth-wonder",
+  };
+  for (let zone = 1; zone <= 8; zone++) {
+    const n = zoneCompletedCount(zone);
+    if (n >= 50) grant(zoneFifty[zone]);
+    if (n >= 100) grant(zoneHundred[zone]);
+    if (n >= 1 && zoneFirst[zone]) grant(zoneFirst[zone]);
+  }
+
+  const xpMilestones: Array<[number, string]> = [
+    [4000, "high-roller"],
+    [6000, "xp-magnate"],
+    [8000, "heavyweight"],
+    [10000, "five-digits"],
+    [12000, "twelve-k"],
+    [15000, "xp-royalty"],
+  ];
+  for (const [n, id] of xpMilestones) {
+    if (xp >= n) grant(id);
+  }
+
+  const bossIds = CHALLENGES.filter((c) => c.id.endsWith("-boss")).map((c) => c.id);
+  if (bossIds.length > 0 && bossIds.every((id) => state.completed[id])) {
+    grant("boss-slayer");
+  }
+
+  if (cleanZones >= 5) grant("five-star");
+  if (cleanZones >= 8) grant("untarnished");
+
+  const standardIds = CHALLENGES.filter((c) => !c.id.endsWith("-boss")).map(
+    (c) => c.id
+  );
+  if (standardIds.length > 0 && standardIds.every((id) => state.completed[id])) {
+    grant("purist");
+  }
+
+  if (xp >= 3800) grant("station-commander");
+  if (xp >= 5000) grant("chief-engineer");
+  if (xp >= 7000) grant("station-director");
+  if (xp >= 9000) grant("nexus-prime");
+  if (xp >= 15000) grant("immortal");
+
   return newly;
 }

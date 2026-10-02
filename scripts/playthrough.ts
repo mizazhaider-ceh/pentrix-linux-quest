@@ -13,6 +13,9 @@ import { CHALLENGES } from "../data/challenges";
 import { LESSONS, lessonsForChapter } from "../data/lessons";
 import { CHAPTERS } from "../data/chapters";
 import { CTF_CHALLENGES } from "../lib/game/ctf";
+import { SOLUTIONS } from "../data/solutions";
+
+const TOTAL = CHALLENGES.length + CTF_CHALLENGES.length;
 
 let failures = 0;
 let solved = 0;
@@ -27,60 +30,10 @@ function ok(cond: boolean, label: string): void {
 }
 
 /** Turn a challenge hint into runnable command lines. */
-// v3: explicit solutions for the 48 expansion challenges (xx-14..19).
-const NEWC_SOLUTIONS: Record<string, string[]> = {
-  "nav-14": ["ls -a /home/agent"],
-  "nav-15": ["cd /home/agent/ops", "cd /home/agent/lab", "cd -"],
-  "nav-16": ["ls -t /home/agent/logs"],
-  "nav-17": ["cp /home/agent/evidence/evidence_a.txt /home/agent/evidence/evidence_b.txt /home/agent/evidence/evidence_c.txt /home/agent/vault"],
-  "nav-18": ["rm -r /home/agent/decoy", "mkdir -p /home/agent/decoy/clean/swept", "touch /home/agent/decoy/clean/swept/swept.txt"],
-  "nav-19": ["cd /home/agent/ops", "mv report.txt archive"],
-  "net-14": ["ping -c 3 10.9.0.1"],
-  "net-15": ["ip -brief addr"],
-  "net-16": ["ss -s"],
-  "net-17": ["curl -o /home/agent/starchart.txt http://relay.local/charts/latest"],
-  "net-18": ["wget -O /home/agent/patch.tar.gz http://relay.local/patches/bundle.bin"],
-  "net-19": ["curl -d \"zone=6&status=green\" http://relay.local/report"],
-  "perm-14": ["chmod 644 /home/agent/docs/bulletin.txt"],
-  "perm-15": ["chmod g+w /home/agent/crew/watch.log"],
-  "perm-16": ["chown agent:crew /home/agent/vault/evidence.txt"],
-  "perm-17": ["chmod --reference /home/agent/vault/master.key /home/agent/vault/spare.key"],
-  "perm-18": ["umask 027", "touch /home/agent/vault/newkey.txt"],
-  "perm-19": ["ls -l /home/agent/shared", "chmod o-w /home/agent/shared/notes.txt"],
-  "proc-14": ["top -b -n 1"],
-  "proc-15": ["sleep 120 &", "jobs -l"],
-  "proc-16": ["sleep 400 &", "pgrep -f sleep"],
-  "proc-17": ["sleep 200 &", "kill %1"],
-  "proc-18": ["ps -o pid,cmd"],
-  "proc-19": ["__PGREP_KILL_TERM"],
-  "read-14": ["cat /home/agent/split/part1.txt /home/agent/split/part2.txt"],
-  "read-15": ["wc -c /home/agent/comms/payload.bin"],
-  "read-16": ["tail -n +5 /home/agent/logs/sys.log"],
-  "read-17": ["cat -A /home/agent/conf/app.conf"],
-  "read-18": ["diff -u /home/agent/fw/rules_old.txt /home/agent/fw/rules_new.txt"],
-  "read-19": ["head -n -3 /home/agent/logs/telemetry.log"],
-  "shell-14": ["ls /home/agent/logs/log?.txt"],
-  "shell-15": ["ls /no/such/dir 2> /home/agent/errors.txt"],
-  "shell-16": ["cat /home/agent/reactor.log | grep WARN | wc -l"],
-  "shell-17": ["find /home/agent/data -size +1k"],
-  "shell-18": ["while read h; do echo \"checking $h\"; done < /home/agent/hosts.txt"],
-  "shell-19": ["echo ${BACKUP_DIR:-/backup}"],
-  "sys-14": ["df -h"],
-  "sys-15": ["uname -r"],
-  "sys-16": ["du -sh /var/log"],
-  "sys-17": ["free -h"],
-  "sys-18": ["uptime -p"],
-  "sys-19": ["date -u \"+%Y-%m-%d %H:%M\""],
-  "text-14": ["grep -c breach /home/agent/logs/alerts.log"],
-  "text-15": ["grep -n vex /home/agent/crew/manifest.txt"],
-  "text-16": ["cut -c 1-8 /home/agent/logs/access.dat"],
-  "text-17": ["tr -d 0-9 < /home/agent/comms/noisy.txt"],
-  "text-18": ["sed -n '3,5p' /home/agent/logs/vault.log"],
-  "text-19": ["awk -F, '$3 > 100 {print $1}' /home/agent/logs/power.csv"],
-};
+// Explicit per-challenge solutions live in data/solutions.ts.
 
 function solutionFor(id: string, hint: string): string[] {
-  if (id in NEWC_SOLUTIONS) return NEWC_SOLUTIONS[id];
+  if (id in SOLUTIONS) return SOLUTIONS[id];
   if (id === "proc-09" || hint.includes("sleep 1100 & then")) {
     return ["sleep 1100 &", "__JOBS_KILL:kill"];
   }
@@ -199,6 +152,21 @@ for (let ch = 1; ch <= 8; ch++) {
       ok(false, `${c.id}: expected active, got ${active?.challenge.id}`);
       continue;
     }
+    // New-batch challenges (xx-20+) were validated in isolated shells.
+    // Reset volatile state so persistent-shell playthrough matches.
+    // Use shell.execute directly (not store.runCommand) so cleanup does not
+    // accidentally complete the active challenge.
+    const cnum = parseInt(c.id.split("-")[1], 10);
+    if (cnum >= 20) {
+      const sh = (store as unknown as { shell: { execute: (c: string) => string; nextJobId: number; history: string[] } }).shell;
+      sh.execute("umask 022");
+      sh.execute("pkill -9 -f sleep");
+      sh.execute("cd /home/agent");
+      // Reset job ID counter so %1 refers to the next background job.
+      sh.nextJobId = 1;
+      // Clear command history: historyMatches rules must only see this challenge's commands.
+      sh.history = [];
+    }
     try {
       runSolution(store, solutionFor(c.id, c.hint));
     } catch (e) {
@@ -245,10 +213,10 @@ for (const c of CTF_CHALLENGES) {
 
 const snap = store.getSnapshot();
 console.log("== v2 playthrough: final assertions ==");
-ok(solved === 165, `165 challenges solved (got ${solved})`);
+ok(solved === TOTAL, `all ${TOTAL} challenges solved (got ${solved})`);
 ok(
-  Object.keys(snap.completed).length === 165,
-  `165 completed in snapshot (got ${Object.keys(snap.completed).length})`
+  Object.keys(snap.completed).length === TOTAL,
+  `all ${TOTAL} completed in snapshot (got ${Object.keys(snap.completed).length})`
 );
 ok(snap.achievements.includes("nexus-graduate"), "nexus-graduate unlocked");
 ok(snap.achievements.includes("valedictorian"), "valedictorian unlocked");
@@ -264,7 +232,7 @@ const notAce = store.submitQuiz(2, 3, 4);
 ok(!notAce && store.getSnapshot().quizAces === 1, "non-perfect quiz not an ace");
 const stats = store.getDashboardStats();
 ok(stats.lessonsViewed === LESSONS.length, `all ${LESSONS.length} lessons viewed`);
-ok(stats.challengesDone === 165, "dashboard: 165 challenges done");
+ok(stats.challengesDone === TOTAL, `dashboard: all ${TOTAL} challenges done`);
 ok(stats.accuracy > 0, `dashboard accuracy ${stats.accuracy}%`);
 ok(stats.bestStreak === snap.streakBest, "dashboard best streak matches");
 ok(stats.chaptersDone === 8, "dashboard: 8 chapters done");

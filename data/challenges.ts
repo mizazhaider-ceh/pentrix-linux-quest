@@ -23,7 +23,16 @@ export interface Challenge {
   verify: VerifyRule | VerifyRule[];
 }
 
-export const CHALLENGES: Challenge[] = [
+import { CHALLENGES_NAV_X } from "./challenges_nav_x";
+import { CHALLENGES_READ_X } from "./challenges_read_x";
+import { CHALLENGES_TEXT_X } from "./challenges_text_x";
+import { CHALLENGES_PERM_X } from "./challenges_perm_x";
+import { CHALLENGES_PROC_X } from "./challenges_proc_x";
+import { CHALLENGES_NET_X } from "./challenges_net_x";
+import { CHALLENGES_SYS_X } from "./challenges_sys_x";
+import { CHALLENGES_SHELL_X } from "./challenges_shell_x";
+
+const CHALLENGES_BASE: Challenge[] = [
   // ================= ZONE 1: DARK HALLS (Navigation) =================
   {
     id: "nav-01",
@@ -2383,4 +2392,18 @@ export const CHALLENGES: Challenge[] = [
       { type: "perm", path: "/home/agent/data_backup.tar", mode: "600" },
     ],
   },
+];
+
+// v4: 1000-challenge expansion. Base 160 + 840 new (105 per zone).
+// Bosses keep their original positions (xx-20) so existing saves stay valid.
+export const CHALLENGES: Challenge[] = [
+  ...CHALLENGES_BASE,
+  ...CHALLENGES_NAV_X,
+  ...CHALLENGES_READ_X,
+  ...CHALLENGES_TEXT_X,
+  ...CHALLENGES_PERM_X,
+  ...CHALLENGES_PROC_X,
+  ...CHALLENGES_NET_X,
+  ...CHALLENGES_SYS_X,
+  ...CHALLENGES_SHELL_X,
 ];

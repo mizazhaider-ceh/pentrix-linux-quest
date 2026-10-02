@@ -1,15 +1,19 @@
 import Link from "next/link";
 import { ZONES } from "@/data/zones";
+import { CHALLENGES } from "@/data/challenges";
 
 export const metadata = {
   title: "How to play | NEXUS: Linux Quest",
   description: "What happened on NEXUS-9, and what the night shift expects from you.",
 };
 
+const STD_PER_ZONE =
+  CHALLENGES.filter((c) => c.zone === 1 && !c.id.endsWith("-boss")).length || 19;
+
 const RULES = [
   {
     title: "Sectors open in order",
-    body: "There are eight sectors, each with 19 challenges plus a lockdown drill. Clear the drill to unlock the next sector. No skipping. The station likes its paperwork in order.",
+    body: `There are eight sectors, each with ${STD_PER_ZONE} challenges plus a lockdown drill. Clear the drill to unlock the next sector. No skipping. The station likes its paperwork in order.`,
   },
   {
     title: "Hints cost 5 XP",
@@ -17,7 +21,7 @@ const RULES = [
   },
   {
     title: "Lockdown drills are timed",
-    body: "Each sector ends with a lockdown drill, unlocked only after all 19 standard challenges are cleared. Beat it against the clock for a bonus achievement. If the timer runs out, the drill resets and you try again. No penalty, just pride.",
+    body: `Each sector ends with a lockdown drill, unlocked only after all ${STD_PER_ZONE} standard challenges are cleared. Beat it against the clock for a bonus achievement. If the timer runs out, the drill resets and you try again. No penalty, just pride.`,
   },
   {
     title: "Your work persists",

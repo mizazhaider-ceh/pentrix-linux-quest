@@ -42,6 +42,12 @@ export const LEVELS: LevelDef[] = [
   { xp: 2000, name: "Nexus Legend" },
   { xp: 2800, name: "Mythic" },
   { xp: 3800, name: "Station Commander" },
+  { xp: 5000, name: "Chief Engineer" },
+  { xp: 7000, name: "Station Director" },
+  { xp: 9000, name: "Nexus Prime" },
+  { xp: 12000, name: "Overlord" },
+  { xp: 15000, name: "Immortal" },
+  { xp: 18000, name: "Eternal" },
 ];
 
 /**
